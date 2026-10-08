@@ -25,6 +25,7 @@ import { PedestrianSystem } from "./pedestrians";
 import { CombatSystem } from "./combat";
 import { WantedSystem } from "./wanted";
 import { MissionSystem } from "./missions";
+import { AtmosphereSystem } from "./atmosphere";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -334,7 +335,7 @@ async function boot() {
     traffic.update(dt);
     pedestrians.update(dt);
     combat.update(dt);\n    wanted.update(dt);
-    missions.update(dt);
+    missions.update(dt);\n    atmosphere.update(scene, dt);
 
     if (missionState) {
       missionState.textContent = missions.active ? missions.label : wanted.level > 0 ? "WANTED" : driving ? "DRIVING" : "FREE ROAM";
