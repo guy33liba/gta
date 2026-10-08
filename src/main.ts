@@ -129,7 +129,7 @@ function createCity(scene: Scene) {
 
 function createPlayer(scene: Scene) {
   const root = MeshBuilder.CreateBox("player-root", { width: 0.7, height: 1.8, depth: 0.55 }, scene);
-  root.position.set(0, 1.05, 0);
+  root.position.set(0, 1.15, 0);
   root.isVisible = false;
 
   const skin = material(scene, "PlayerSkin", new Color3(0.72, 0.46, 0.30));
@@ -157,18 +157,18 @@ function createPlayer(scene: Scene) {
   for (const side of [-1, 1]) {
     const arm = MeshBuilder.CreateCapsule("player-arm-" + side, { height: 0.78, radius: 0.12 }, scene);
     arm.parent = root;
-    arm.position.set(side * 0.51, 0.08, 0);
+    arm.position.set(side * 0.51, 0.02, 0);
     arm.rotation.z = side * 0.08;
     arm.material = shirt;
 
     const leg = MeshBuilder.CreateCapsule("player-leg-" + side, { height: 0.9, radius: 0.13 }, scene);
     leg.parent = root;
-    leg.position.set(side * 0.19, -0.76, 0);
+    leg.position.set(side * 0.19, -0.58, 0);
     leg.material = pants;
 
     const shoe = MeshBuilder.CreateBox("player-shoe-" + side, { width: 0.25, height: 0.12, depth: 0.42 }, scene);
     shoe.parent = root;
-    shoe.position.set(side * 0.19, -1.2, 0.08);
+    shoe.position.set(side * 0.19, -0.99, 0.08);
     shoe.material = shoes;
   }
 
