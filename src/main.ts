@@ -8,7 +8,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   Vector3,
   WebGPUEngine,
   DefaultRenderingPipeline,
@@ -59,9 +59,10 @@ const setProgress = (value: number) => {
 };
 
 const material = (scene: Scene, name: string, color: Color3) => {
-  const m = new StandardMaterial(name, scene);
-  m.diffuseColor = color;
-  m.specularColor = new Color3(0.08, 0.08, 0.08);
+  const m = new PBRMaterial(name, scene);
+  m.albedoColor = color;
+  m.metallic = name.includes("Chrome") || name.includes("Rim") ? 0.82 : name.includes("CarPaint") ? 0.72 : 0.08;
+  m.roughness = name.includes("Glass") ? 0.18 : name.includes("CarPaint") ? 0.24 : 0.68;
   return m;
 };
 
