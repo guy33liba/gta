@@ -16,6 +16,8 @@ type Pedestrian = {
   pause: number;
   crossing: boolean;
   health: number;
+  stagger: number;
+  knockback: Vector3;
 };
 
 const ROAD_SPACING = 56;
@@ -49,6 +51,10 @@ export class PedestrianSystem {
     const pedestrian = this.pedestrians.find((item) => item.mesh === target);
     if (!pedestrian) return false;
     pedestrian.health -= amount;
+    pedestrian.pause = 0.22;
+    pedestrian.stagger = Math.min(0.6, pedestrian.stagger + 0.28);
+    if (hitDirection) { const push = hitDirection.clone(); push.y = 0; if (push.lengthSquared() > 0) { push.normalize(); pedestrian.knockback.addInPlace(push.scale(3.2)); } }
+    if (hitPosition) pedestrian.mesh.rotation.z = hitPosition.x >= pedestrian.mesh.position.x ? -0.14 : 0.14;
     if (pedestrian.health <= 0) {
       pedestrian.mesh.dispose(false, true);
       this.pedestrians.splice(this.pedestrians.indexOf(pedestrian), 1);
@@ -104,10 +110,14 @@ export class PedestrianSystem {
       pause: 0,
       crossing: false,
       health: 100,
+      stagger: 0,
+      knockback: Vector3.Zero(),
     });
   }
 
   private updatePedestrian(pedestrian: Pedestrian, dt: number) {
+    if (pedestrian.stagger > 0) { pedestrian.stagger = Math.max(0, pedestrian.stagger - dt); pedestrian.mesh.rotation.z *= Math.max(0, 1 - dt * 6); }
+    if (pedestrian.knockback.lengthSquared() > 0.01) { pedestrian.mesh.position.addInPlace(pedestrian.knockback.scale(dt)); pedestrian.knockback.scaleInPlace(Math.max(0, 1 - dt * 9)); }
     if (pedestrian.pause > 0) {
       pedestrian.pause -= dt;
       return;
