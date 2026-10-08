@@ -128,31 +128,128 @@ function createCity(scene: Scene) {
 }
 
 function createPlayer(scene: Scene) {
-  const body = MeshBuilder.CreateCapsule("player", { height: 2.1, radius: 0.42 }, scene);
-  body.position.set(0, 1.05, 0);
-  body.material = material(scene, "Player", new Color3(0.12, 0.42, 0.8));
-  return body;
+  const root = MeshBuilder.CreateBox("player-root", { width: 0.7, height: 1.8, depth: 0.55 }, scene);
+  root.position.set(0, 1.05, 0);
+  root.isVisible = false;
+
+  const skin = material(scene, "PlayerSkin", new Color3(0.72, 0.46, 0.30));
+  const shirt = material(scene, "PlayerShirt", new Color3(0.035, 0.13, 0.28));
+  const pants = material(scene, "PlayerPants", new Color3(0.035, 0.045, 0.065));
+  const shoes = material(scene, "PlayerShoes", new Color3(0.015, 0.018, 0.022));
+  const hair = material(scene, "PlayerHair", new Color3(0.018, 0.012, 0.01));
+
+  const torso = MeshBuilder.CreateBox("player-torso", { width: 0.78, height: 0.92, depth: 0.46 }, scene);
+  torso.parent = root;
+  torso.position.y = 0.08;
+  torso.material = shirt;
+
+  const head = MeshBuilder.CreateSphere("player-head", { diameter: 0.52, segments: 16 }, scene);
+  head.parent = root;
+  head.position.y = 0.78;
+  head.material = skin;
+
+  const hairTop = MeshBuilder.CreateSphere("player-hair", { diameter: 0.55, segments: 12 }, scene);
+  hairTop.parent = root;
+  hairTop.position.set(0, 0.98, 0);
+  hairTop.scaling.y = 0.42;
+  hairTop.material = hair;
+
+  for (const side of [-1, 1]) {
+    const arm = MeshBuilder.CreateCapsule("player-arm-" + side, { height: 0.78, radius: 0.12 }, scene);
+    arm.parent = root;
+    arm.position.set(side * 0.51, 0.08, 0);
+    arm.rotation.z = side * 0.08;
+    arm.material = shirt;
+
+    const leg = MeshBuilder.CreateCapsule("player-leg-" + side, { height: 0.9, radius: 0.13 }, scene);
+    leg.parent = root;
+    leg.position.set(side * 0.19, -0.76, 0);
+    leg.material = pants;
+
+    const shoe = MeshBuilder.CreateBox("player-shoe-" + side, { width: 0.25, height: 0.12, depth: 0.42 }, scene);
+    shoe.parent = root;
+    shoe.position.set(side * 0.19, -1.2, 0.08);
+    shoe.material = shoes;
+  }
+
+  return root;
 }
 
 function createCar(scene: Scene) {
-  const body = MeshBuilder.CreateBox("car", { width: 2.1, height: 0.55, depth: 4.1 }, scene);
+  const body = MeshBuilder.CreateBox("car", { width: 2.15, height: 0.62, depth: 4.2 }, scene);
   body.position.set(8, 0.55, 8);
-  body.material = material(scene, "CarPaint", new Color3(0.65, 0.07, 0.05));
+  body.material = material(scene, "CarPaint", new Color3(0.55, 0.045, 0.025));
 
-  const wheelMat = material(scene, "Tire", new Color3(0.015, 0.015, 0.018));
-  const wheelPositions = [[-1.05, 0.35, 1.25], [1.05, 0.35, 1.25], [-1.05, 0.35, -1.25], [1.05, 0.35, -1.25]];
-  for (let i = 0; i < wheelPositions.length; i++) {
-    const wheel = MeshBuilder.CreateCylinder("car-wheel-" + i, { diameter: 0.62, height: 0.22, tessellation: 16 }, scene);
-    wheel.rotation.z = Math.PI / 2;
-    wheel.position.set(8 + wheelPositions[i][0], 0.35, 8 + wheelPositions[i][2]);
-    wheel.material = wheelMat;
-    wheel.parent = body;
+  const dark = material(scene, "CarTrim", new Color3(0.012, 0.016, 0.022));
+  const glass = material(scene, "CarGlass", new Color3(0.025, 0.075, 0.10));
+  glass.emissiveColor = new Color3(0.008, 0.025, 0.035);
+  const chrome = material(scene, "CarChrome", new Color3(0.32, 0.34, 0.36));
+  const headlight = material(scene, "CarHeadlight", new Color3(0.95, 0.92, 0.72));
+  headlight.emissiveColor = new Color3(0.55, 0.48, 0.22);
+  const taillight = material(scene, "CarTaillight", new Color3(0.45, 0.015, 0.01));
+  taillight.emissiveColor = new Color3(0.25, 0.008, 0.004);
+
+  const roof = MeshBuilder.CreateBox("car-roof", { width: 1.72, height: 0.48, depth: 1.92 }, scene);
+  roof.parent = body;
+  roof.position.set(0, 0.55, -0.12);
+  roof.material = glass;
+
+  const hood = MeshBuilder.CreateBox("car-hood", { width: 1.82, height: 0.14, depth: 0.9 }, scene);
+  hood.parent = body;
+  hood.position.set(0, 0.32, 1.48);
+  hood.material = body.material;
+
+  const trunk = MeshBuilder.CreateBox("car-trunk", { width: 1.82, height: 0.14, depth: 0.72 }, scene);
+  trunk.parent = body;
+  trunk.position.set(0, 0.34, -1.52);
+  trunk.material = body.material;
+
+  const frontBumper = MeshBuilder.CreateBox("car-front-bumper", { width: 2.0, height: 0.16, depth: 0.12 }, scene);
+  frontBumper.parent = body;
+  frontBumper.position.set(0, -0.18, 2.06);
+  frontBumper.material = chrome;
+
+  const rearBumper = MeshBuilder.CreateBox("car-rear-bumper", { width: 2.0, height: 0.16, depth: 0.12 }, scene);
+  rearBumper.parent = body;
+  rearBumper.position.set(0, -0.18, -2.06);
+  rearBumper.material = chrome;
+
+  for (const side of [-1, 1]) {
+    const sideTrim = MeshBuilder.CreateBox("car-side-trim-" + side, { width: 0.08, height: 0.11, depth: 2.9 }, scene);
+    sideTrim.parent = body;
+    sideTrim.position.set(side * 1.08, -0.02, 0);
+    sideTrim.material = dark;
   }
 
-  const roof = MeshBuilder.CreateBox("car-roof", { width: 1.75, height: 0.5, depth: 1.9 }, scene);
-  roof.position.set(8, 0.98, 7.8);
-  roof.material = material(scene, "CarGlass", new Color3(0.03, 0.08, 0.11));
-  roof.parent = body;
+  const lightPositions = [
+    { x: -0.62, z: 2.08, material: headlight },
+    { x: 0.62, z: 2.08, material: headlight },
+    { x: -0.62, z: -2.08, material: taillight },
+    { x: 0.62, z: -2.08, material: taillight },
+  ];
+  for (let i = 0; i < lightPositions.length; i++) {
+    const light = MeshBuilder.CreateBox("car-light-" + i, { width: 0.34, height: 0.13, depth: 0.08 }, scene);
+    light.parent = body;
+    light.position.set(lightPositions[i].x, 0.05, lightPositions[i].z);
+    light.material = lightPositions[i].material;
+  }
+
+  const wheelMat = material(scene, "Tire", new Color3(0.008, 0.009, 0.012));
+  const rimMat = material(scene, "WheelRim", new Color3(0.18, 0.19, 0.20));
+  const wheelPositions = [[-1.05, 0.35, 1.25], [1.05, 0.35, 1.25], [-1.05, 0.35, -1.25], [1.05, 0.35, -1.25]];
+  for (let i = 0; i < wheelPositions.length; i++) {
+    const wheel = MeshBuilder.CreateCylinder("car-wheel-" + i, { diameter: 0.66, height: 0.24, tessellation: 20 }, scene);
+    wheel.parent = body;
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(wheelPositions[i][0], -0.03, wheelPositions[i][2]);
+    wheel.material = wheelMat;
+
+    const rim = MeshBuilder.CreateCylinder("car-rim-" + i, { diameter: 0.34, height: 0.255, tessellation: 16 }, scene);
+    rim.parent = wheel;
+    rim.rotation.z = Math.PI / 2;
+    rim.position.set(0, 0, 0);
+    rim.material = rimMat;
+  }
 
   return body;
 }
