@@ -26,6 +26,7 @@ import { CombatSystem } from "./combat";
 import { WantedSystem } from "./wanted";
 import { MissionSystem } from "./missions";
 import { AtmosphereSystem } from "./atmosphere";
+import { AudioSystem } from "./audio";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -249,6 +250,11 @@ async function boot() {
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const pedestrians = new PedestrianSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
+  const atmosphere = new AtmosphereSystem(scene, sun, hemi);
+  const audio = new AudioSystem();
+  const unlockAudio = () => audio.unlock();
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
   const wanted = new WantedSystem(scene, player, car, () => driving, material, (level) => {
     if (wantedValue) wantedValue.textContent = level > 0 ? "★".repeat(level) : "CLEAR";
   });
@@ -293,7 +299,7 @@ async function boot() {
     },
   );
 
-  const fire = () => combat.shoot();
+  const fire = () => { if (combat.shoot()) audio.gunshot(); };
   const reload = () => combat.reload();
   document.querySelector<HTMLButtonElement>("#touch-fire")?.addEventListener("pointerdown", (event) => {
     event.preventDefault();
