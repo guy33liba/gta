@@ -3,7 +3,6 @@ import {
   Mesh,
   MeshBuilder,
   PBRMaterial,
-  PointLight,
   Scene,
   ShadowGenerator,
   Vector3,
@@ -75,7 +74,7 @@ export function createWorldStream(
   ground.material = groundMaterial;
   ground.receiveShadows = true;
 
-  type Chunk = { meshes: Mesh[]; lights: PointLight[] };
+  type Chunk = { meshes: Mesh[] };
   const chunks = new Map<string, Chunk>();
 
   const addBox = (
@@ -334,7 +333,7 @@ export function createWorldStream(
     crown.freezeWorldMatrix();
   };
 
-  const createStreetLight = (meshes: Mesh[], lights: PointLight[], key: string, x: number, z: number, side: number) => {
+  const createStreetLight = (meshes: Mesh[], key: string, x: number, z: number, side: number) => {
     const pole = addCylinder(
       meshes,
       "lamp-pole-" + key + "-" + side + "-" + x + "-" + z,
@@ -361,12 +360,6 @@ export function createWorldStream(
     lamp.material = lampMaterial;
     meshes.push(lamp);
 
-    const light = new PointLight("street-light-" + key + "-" + side + "-" + x + "-" + z, lamp.position.clone(), scene);
-    light.diffuse = new Color3(1, 0.55, 0.22);
-    light.specular = new Color3(1, 0.42, 0.12);
-    light.intensity = 0.7;
-    light.range = 15;
-    lights.push(light);
 
     pole.freezeWorldMatrix();
     arm.freezeWorldMatrix();
@@ -427,7 +420,6 @@ export function createWorldStream(
     if (chunks.has(key)) return;
 
     const meshes: Mesh[] = [];
-    const lights: PointLight[] = [];
     const ox = cx * CHUNK_SIZE;
     const oz = cz * CHUNK_SIZE;
 
@@ -504,7 +496,7 @@ export function createWorldStream(
     ];
     streetFurniture.forEach((item, index) => {
       const [x, z] = item;
-      createStreetLight(meshes, lights, key, ox + x, oz + z, index % 2 === 0 ? 1 : -1);
+      createStreetLight(meshes, key, ox + x, oz + z, index % 2 === 0 ? 1 : -1);
     });
 
     const treePositions = [
@@ -530,13 +522,12 @@ export function createWorldStream(
       addBox(meshes, "bollard-cap-" + key + "-" + i, 0.22, 0.08, 0.22, new Vector3(x, 0.81, z), facadeTrimMaterial);
     }
 
-    chunks.set(key, { meshes, lights });
+    chunks.set(key, { meshes });
   };
 
   const unload = (key: string) => {
     const chunk = chunks.get(key);
     if (!chunk) return;
-    for (const light of chunk.lights) light.dispose();
     for (const mesh of chunk.meshes) mesh.dispose();
     chunks.delete(key);
   };
