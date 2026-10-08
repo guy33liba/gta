@@ -194,10 +194,10 @@ export class PedestrianSystem {
         const crossSide = currentSide >= (pedestrian.axis === "x" ? roadZ : roadX) ? -1 : 1;
         if (pedestrian.axis === "x") {
           position.z = roadZ + crossSide * SIDEWALK_OFFSET;
-          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as Direction;
+          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as 1 | -1;
         } else {
           position.x = roadX + crossSide * SIDEWALK_OFFSET;
-          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as Direction;
+          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as 1 | -1;
         }
       }
     }
