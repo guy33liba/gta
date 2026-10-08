@@ -133,7 +133,6 @@ function createPlayer(scene: Scene) {
   const body = MeshBuilder.CreateCapsule("player", { height: 2.1, radius: 0.42 }, scene);
   body.position.set(0, 1.05, 0);
   body.material = material(scene, "Player", new Color3(0.12, 0.42, 0.8));
-  new PhysicsAggregate(body, PhysicsShapeType.CAPSULE, { mass: 70, restitution: 0, friction: 0.4 }, scene);
   return body;
 }
 
@@ -141,7 +140,6 @@ function createCar(scene: Scene) {
   const body = MeshBuilder.CreateBox("car", { width: 2.1, height: 0.55, depth: 4.1 }, scene);
   body.position.set(8, 0.55, 8);
   body.material = material(scene, "CarPaint", new Color3(0.65, 0.07, 0.05));
-  new PhysicsAggregate(body, PhysicsShapeType.BOX, { mass: 1250, restitution: 0.05, friction: 0.7 }, scene);
 
   const roof = MeshBuilder.CreateBox("car-roof", { width: 1.75, height: 0.5, depth: 1.9 }, scene);
   roof.position.set(8, 0.98, 7.8);
