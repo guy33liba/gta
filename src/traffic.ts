@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   Vector3,
 } from "@babylonjs/core";
 
@@ -33,8 +33,8 @@ const DESPAWN_RADIUS = 205;
 export class TrafficSystem {
   private readonly cars: TrafficCar[] = [];
   private readonly lights = new Map<string, Mesh>();
-  private readonly carMaterial: StandardMaterial;
-  private readonly glassMaterial: StandardMaterial;
+  private readonly carMaterial: PBRMaterial;
+  private readonly glassMaterial: PBRMaterial;
   private elapsed = 0;
   private lastFocusX = Number.NaN;
   private lastFocusZ = Number.NaN;
@@ -44,7 +44,7 @@ export class TrafficSystem {
     private readonly focus: Mesh,
     private readonly playerCar: Mesh,
     private readonly isPlayerDriving: () => boolean,
-    makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+    makeMaterial: (scene: Scene, name: string, color: Color3) => PBRMaterial,
   ) {
     this.carMaterial = makeMaterial(scene, "TrafficPaint", new Color3(0.12, 0.18, 0.22));
     this.glassMaterial = makeMaterial(scene, "TrafficGlass", new Color3(0.025, 0.05, 0.065));
