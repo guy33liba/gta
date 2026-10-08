@@ -37,13 +37,15 @@ export function createWorldStream(
     friction: 0.9,
   }, scene);
 
-  const chunks = new Map<string, Mesh[]>();
+  type Chunk = { meshes: Mesh[]; bodies: PhysicsAggregate[] };
+  const chunks = new Map<string, Chunk>();
 
   const load = (cx: number, cz: number) => {
     const key = cx + ":" + cz;
     if (chunks.has(key)) return;
 
     const meshes: Mesh[] = [];
+    const bodies: PhysicsAggregate[] = [];
     const ox = cx * CHUNK_SIZE;
     const oz = cz * CHUNK_SIZE;
 
@@ -76,21 +78,23 @@ export function createWorldStream(
       }, scene);
       building.position.set(x, height / 2, z);
       building.material = buildingMaterials[i % buildingMaterials.length];
-      new PhysicsAggregate(building, PhysicsShapeType.BOX, {
+      const body = new PhysicsAggregate(building, PhysicsShapeType.BOX, {
         mass: 0,
         restitution: 0,
         friction: 0.8,
       }, scene);
+      bodies.push(body);
       meshes.push(building);
     }
 
-    chunks.set(key, meshes);
+    chunks.set(key, { meshes, bodies });
   };
 
   const unload = (key: string) => {
-    const meshes = chunks.get(key);
-    if (!meshes) return;
-    for (const mesh of meshes) mesh.dispose();
+    const chunk = chunks.get(key);
+    if (!chunk) return;
+    for (const body of chunk.bodies) body.dispose();
+    for (const mesh of chunk.meshes) mesh.dispose();
     chunks.delete(key);
   };
 
