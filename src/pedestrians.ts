@@ -44,6 +44,17 @@ export class PedestrianSystem {
     ];
   }
 
+  damage(target: Mesh, amount: number) {
+    const pedestrian = this.pedestrians.find((item) => item.mesh === target);
+    if (!pedestrian) return false;
+    pedestrian.health -= amount;
+    if (pedestrian.health <= 0) {
+      pedestrian.mesh.dispose(false, true);
+      this.pedestrians.splice(this.pedestrians.indexOf(pedestrian), 1);
+    }
+    return true;
+  }
+
   update(dt: number) {
     this.elapsed += dt;
     this.ensurePopulation();
