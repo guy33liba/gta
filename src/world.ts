@@ -133,11 +133,13 @@ export function createWorldStream(
     for (let i = 0; i < 6; i++) {
       const x = ox + (i % 3 === 0 ? -20 : i % 3 === 1 ? 4 : 20);
       const z = oz + (i < 3 ? -20 : 20);
+      const width = 11 + (i % 3) * 2;
+      const depth = 11 + ((i + 1) % 3) * 2;
       const height = 9 + Math.abs((cx * 17 + cz * 11 + i * 7) % 28);
 
       const building = MeshBuilder.CreateBox("building-" + key + "-" + i, {
-        width: 11 + (i % 3) * 2,
-        depth: 11 + ((i + 1) % 3) * 2,
+        width,
+        depth,
         height,
       }, scene);
       building.position.set(x, height / 2, z);
