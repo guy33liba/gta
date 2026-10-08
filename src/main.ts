@@ -24,6 +24,7 @@ import { TrafficSystem } from "./traffic";
 import { PedestrianSystem } from "./pedestrians";
 import { CombatSystem } from "./combat";
 import { WantedSystem } from "./wanted";
+import { MissionSystem } from "./missions";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -246,7 +247,9 @@ async function boot() {
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const pedestrians = new PedestrianSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
-  const wanted = new WantedSystem(scene, player, car, () => driving, material, (level) => {\n    if (wantedValue) wantedValue.textContent = level > 0 ? "★".repeat(level) : "CLEAR";\n    missionState!.textContent = level > 0 ? "WANTED" : driving ? "DRIVING" : "FREE ROAM";\n  });
+  const wanted = new WantedSystem(scene, player, car, () => driving, material, (level) => {
+    if (wantedValue) wantedValue.textContent = level > 0 ? "★".repeat(level) : "CLEAR";
+  });
   const combat = new CombatSystem(
     scene,
     camera,
@@ -263,6 +266,31 @@ async function boot() {
       }
     },
   );
+  const missionTitle = document.querySelector<HTMLElement>("#mission-title");
+  const missionObjective = document.querySelector<HTMLElement>("#mission-objective");
+  const missionDistance = document.querySelector<HTMLElement>("#mission-distance");
+  const cashValue = document.querySelector<HTMLElement>("#cash-value");
+  let cash = Number(cashValue?.textContent?.replace(/[^0-9]/g, "") || "0");
+
+  const missions = new MissionSystem(
+    scene,
+    player,
+    car,
+    () => driving,
+    material,
+    wanted,
+    (title, objective, distance, reward) => {
+      if (missionTitle) missionTitle.textContent = title;
+      if (missionObjective) missionObjective.textContent = objective;
+      if (missionDistance) missionDistance.textContent = distance === null ? "" : Math.round(distance) + " m";
+      if (cashValue) cashValue.textContent = "$" + cash.toLocaleString();
+    },
+    (reward) => {
+      cash += reward;
+      if (cashValue) cashValue.textContent = "$" + cash.toLocaleString();
+    },
+  );
+
   const fire = () => combat.shoot();
   const reload = () => combat.reload();
   document.querySelector<HTMLButtonElement>("#touch-fire")?.addEventListener("pointerdown", (event) => {
@@ -305,6 +333,11 @@ async function boot() {
     traffic.update(dt);
     pedestrians.update(dt);
     combat.update(dt);\n    wanted.update(dt);
+    missions.update(dt);
+
+    if (missionState) {
+      missionState.textContent = missions.active ? missions.label : wanted.level > 0 ? "WANTED" : driving ? "DRIVING" : "FREE ROAM";
+    }
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
