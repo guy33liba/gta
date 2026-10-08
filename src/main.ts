@@ -158,18 +158,54 @@ function createCamera(scene: Scene, target: Mesh) {
   return camera;
 }
 
+function toggleVehicle() {
+  if (Vector3.Distance(player.position, car.position) < 5) {
+    driving = !driving;
+    missionState!.textContent = driving ? "DRIVING" : "FREE ROAM";
+    player.setEnabled(!driving);
+  }
+}
+
+function bindTouchButton(id: string, key: string) {
+  const button = document.querySelector<HTMLButtonElement>("#" + id);
+  if (!button) return;
+
+  const press = (event: Event) => {
+    event.preventDefault();
+    input[key] = true;
+  };
+  const release = (event: Event) => {
+    event.preventDefault();
+    input[key] = false;
+  };
+
+  button.addEventListener("pointerdown", press);
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("pointerleave", release);
+}
+
 function setupInput() {
   window.addEventListener("keydown", (event) => {
-    input[event.key.toLowerCase()] = true;
-    if (event.key.toLowerCase() === "e" && Vector3.Distance(player.position, car.position) < 5) {
-      driving = !driving;
-      missionState!.textContent = driving ? "DRIVING" : "FREE ROAM";
-      player.setEnabled(!driving);
-    }
+    const key = event.key.toLowerCase();
+    input[key] = true;
+    if (key === "e") toggleVehicle();
   });
 
   window.addEventListener("keyup", (event) => {
     input[event.key.toLowerCase()] = false;
+  });
+
+  bindTouchButton("touch-up", "w");
+  bindTouchButton("touch-left", "a");
+  bindTouchButton("touch-down", "s");
+  bindTouchButton("touch-right", "d");
+  bindTouchButton("touch-sprint", "shift");
+
+  const enterButton = document.querySelector<HTMLButtonElement>("#touch-enter");
+  enterButton?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    toggleVehicle();
   });
 }
 
