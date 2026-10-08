@@ -45,7 +45,7 @@ export class PedestrianSystem {
     ];
   }
 
-  damage(target: Mesh, amount: number) {
+  damage(target: Mesh, amount: number, hitPosition?: Vector3, hitDirection?: Vector3) {
     const pedestrian = this.pedestrians.find((item) => item.mesh === target);
     if (!pedestrian) return false;
     pedestrian.health -= amount;
