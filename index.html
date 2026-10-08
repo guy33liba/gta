@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070a0f" />
+    <meta name="description" content="Original browser-based open-world 3D action game prototype." />
+    <title>Urban Heat — Browser Open World</title>
+  </head>
+  <body>
+    <main id="game-shell">
+      <canvas id="game-canvas" aria-label="3D game viewport"></canvas>
+      <section id="hud" aria-label="Game HUD">
+        <div id="hud-top">
+          <div id="brand">URBAN HEAT</div>
+          <div id="mission-state">FREE ROAM</div>
+        </div>
+        <div id="hud-bottom">
+          <div id="status-card">
+            <div id="status-health">HEALTH <span id="health-value">100</span></div>
+            <div id="status-cash">$<span id="cash-value">250</span></div>
+          </div>
+          <div id="controls-card">
+            <span>WASD MOVE</span>
+            <span>SHIFT SPRINT</span>
+            <span>E ENTER VEHICLE</span>
+          </div>
+        </div>
+      </section>
+      <div id="loading-screen">
+        <div id="loading-title">URBAN HEAT</div>
+        <div id="loading-copy">INITIALIZING CITY</div>
+        <div id="loading-bar"><span id="loading-progress"></span></div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
