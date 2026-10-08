@@ -180,8 +180,8 @@ export function createWorldStream(
           meshes.push(sideInstance);
         }
       }
-      facadeWindow.dispose();
-
+      facadeWindow.setEnabled(false);
+      meshes.push(facadeWindow);
       meshes.push(building);
 
       const roof = MeshBuilder.CreateBox("roof-" + key + "-" + i, {
