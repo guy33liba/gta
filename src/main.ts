@@ -201,6 +201,7 @@ function setupInput() {
     input[key] = true;
     if (key === "e") toggleVehicle();
     if (key === "r") reload();
+    if (key === "m" && !missions.active) missions.startMission();
   });
 
   window.addEventListener("keyup", (event) => {
