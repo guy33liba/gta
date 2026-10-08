@@ -4,6 +4,7 @@ import {
   MeshBuilder,
   Scene,
   StandardMaterial,
+  ShadowGenerator,
   Vector3,
 } from "@babylonjs/core";
 
@@ -16,6 +17,7 @@ export function createWorldStream(
   scene: Scene,
   focus: Mesh,
   makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+  shadows: ShadowGenerator,
 ): WorldStream {
   const groundMaterial = makeMaterial(scene, "WorldGround", new Color3(0.045, 0.055, 0.065));
   const roadMaterial = makeMaterial(scene, "WorldRoad", new Color3(0.018, 0.022, 0.028));
@@ -56,6 +58,7 @@ export function createWorldStream(
     }, scene);
     verticalRoad.position.set(ox, 0.02, oz);
     verticalRoad.material = roadMaterial;
+    verticalRoad.receiveShadows = true;
     meshes.push(verticalRoad);
 
     const horizontalRoad = MeshBuilder.CreateBox("road-h-" + key, {
@@ -63,6 +66,7 @@ export function createWorldStream(
     }, scene);
     horizontalRoad.position.set(ox, 0.025, oz);
     horizontalRoad.material = roadMaterial;
+    horizontalRoad.receiveShadows = true;
     meshes.push(horizontalRoad);
 
     const curbPieces = [
@@ -90,6 +94,7 @@ export function createWorldStream(
       }, scene);
       sidewalk.position.set(ox + piece.x, 0.08, oz + piece.z);
       sidewalk.material = sidewalkMaterial;
+      sidewalk.receiveShadows = true;
       meshes.push(sidewalk);
     }
 
@@ -138,7 +143,44 @@ export function createWorldStream(
       building.position.set(x, height / 2, z);
       building.material = buildingMaterials[i % buildingMaterials.length];
       building.scaling = new Vector3(1, 1, 1);
+      building.receiveShadows = true;
+      shadows.addShadowCaster(building);
       building.freezeWorldMatrix();
+
+      const facadeWindow = MeshBuilder.CreateBox("facade-window-master-" + key + "-" + i, {
+        width: 1.15, height: 0.72, depth: 0.06,
+      }, scene);
+      facadeWindow.material = i % 4 === 0 ? warmWindowMaterial : windowMaterial;
+      facadeWindow.isVisible = false;
+
+      const floorCount = Math.max(2, Math.floor((height - 2) / 4.2));
+      const columns = Math.max(3, Math.floor((width - 1.5) / 2.5));
+      const xStep = (width - 2.4) / Math.max(1, columns - 1);
+      for (let floor = 0; floor < floorCount; floor++) {
+        const y = 2.0 + floor * 4.0;
+        if (y > height - 1.3) break;
+        for (let column = 0; column < columns; column++) {
+          const instance = facadeWindow.createInstance("window-" + key + "-" + i + "-" + floor + "-" + column);
+          instance.position.set(
+            x - width / 2 + 1.2 + column * xStep,
+            y,
+            z - depth / 2 - 0.045,
+          );
+          instance.freezeWorldMatrix();
+          meshes.push(instance);
+
+          const sideInstance = facadeWindow.createInstance("side-window-" + key + "-" + i + "-" + floor + "-" + column);
+          sideInstance.position.set(
+            x - width / 2 - 0.045,
+            y,
+            z - depth / 2 + 1.2 + column * Math.min(2.5, (depth - 2.4) / Math.max(1, columns - 1)),
+          );
+          sideInstance.rotation.y = Math.PI / 2;
+          sideInstance.freezeWorldMatrix();
+          meshes.push(sideInstance);
+        }
+      }
+      facadeWindow.dispose();
 
       meshes.push(building);
 
@@ -147,6 +189,8 @@ export function createWorldStream(
       }, scene);
       roof.position.set(x, height + 0.2, z);
       roof.material = buildingMaterials[(i + 1) % buildingMaterials.length];
+      roof.receiveShadows = true;
+      shadows.addShadowCaster(roof);
       roof.freezeWorldMatrix();
       meshes.push(roof);
 
@@ -193,6 +237,7 @@ export function createWorldStream(
       }, scene);
       tree.position.set(ox + side * 10, 1.4, oz - 18 + i * 12);
       tree.material = trunkMaterial;
+      shadows.addShadowCaster(tree);
       tree.freezeWorldMatrix();
       meshes.push(tree);
 
@@ -201,6 +246,7 @@ export function createWorldStream(
       }, scene);
       crown.position.set(tree.position.x, 3.0, tree.position.z);
       crown.material = leafMaterial;
+      shadows.addShadowCaster(crown);
       crown.freezeWorldMatrix();
       meshes.push(crown);
     }
