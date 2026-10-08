@@ -12,7 +12,7 @@ import {
   StandardMaterial,
   Vector3,
   WebGPUEngine,
-  Camera,
+  DefaultRenderingPipeline,
 } from "@babylonjs/core";
 import "@babylonjs/loaders";
 import { createWorldStream } from "./world";
@@ -158,9 +158,9 @@ function createCar(scene: Scene) {
 }
 
 function createCamera(scene: Scene, target: Mesh) {
-  const camera = new ArcRotateCamera("third-person-camera", Math.PI, 1.05, 9, target.position, scene);
+  const camera = new ArcRotateCamera("third-person-camera", Math.PI, 1.08, 11.5, target.position, scene);
   camera.lowerRadiusLimit = 5;
-  camera.upperRadiusLimit = 16;
+  camera.upperRadiusLimit = 20;
   camera.wheelDeltaPercentage = 0.02;
   camera.attachControl(canvas, true);
   camera.panningSensibility = 0;
@@ -245,6 +245,18 @@ async function boot() {
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const pedestrians = new PedestrianSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
+  const pipeline = new DefaultRenderingPipeline("urban-heat-pipeline", true, scene, [camera]);
+  pipeline.fxaaEnabled = true;
+  pipeline.bloomEnabled = true;
+  pipeline.bloomThreshold = 0.78;
+  pipeline.bloomWeight = 0.14;
+  pipeline.bloomKernel = 48;
+  pipeline.imageProcessingEnabled = true;
+  pipeline.imageProcessing.contrast = 1.12;
+  pipeline.imageProcessing.exposure = 1.04;
+  pipeline.sharpenEnabled = true;
+  pipeline.sharpen.edgeAmount = 0.18;
+  pipeline.sharpen.colorAmount = 0.65;
   const atmosphere = new AtmosphereSystem(scene, sun, hemi);
   const audio = new AudioSystem();
   const unlockAudio = () => audio.unlock();
@@ -368,8 +380,8 @@ async function boot() {
     const speedRatio = driving ? Math.min(1, Math.abs(vehicleController.getSpeed()) / 26) : 0;
     camera.alpha = Math.PI + target.rotation.y;
     camera.beta = (driving ? 1.12 - speedRatio * 0.035 : 1.08) - combat.recoilKick;
-    camera.radius = driving ? 7.5 + speedRatio * 0.9 : 9;
-    if (driving) camera.target.y = target.position.y + speedRatio * 0.12;
+    camera.radius = driving ? 9.5 + speedRatio * 1.2 : 11.5;
+    camera.target.y = target.position.y + (driving ? speedRatio * 0.2 : 0.55);
     camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
 
     scene.render();
