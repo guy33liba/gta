@@ -46,6 +46,10 @@ export class WantedSystem {
     return this.wanted;
   }
 
+  getThreatPositions() {
+    return this.units.map((unit) => unit.mesh.position);
+  }
+
   addCrime(amount = 1) {
     this.wanted = Math.min(5, this.wanted + amount);
     this.crimeTimer = 12;
