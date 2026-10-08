@@ -33,6 +33,9 @@ export function createWorldStream(
   warmWindowMaterial.emissiveColor = new Color3(0.09, 0.055, 0.02);
   const curbMaterial = makeMaterial(scene, "WorldCurb", new Color3(0.20, 0.21, 0.22));
   const metalMaterial = makeMaterial(scene, "WorldStreetMetal", new Color3(0.055, 0.065, 0.075));
+  const facadeTrimMaterial = makeMaterial(scene, "WorldFacadeTrim", new Color3(0.055, 0.065, 0.075));
+  facadeTrimMaterial.metallic = 0.35;
+  facadeTrimMaterial.roughness = 0.42;
   const buildingMaterials = [
     makeMaterial(scene, "WorldConcrete", new Color3(0.22, 0.24, 0.27)),
     makeMaterial(scene, "WorldWarmConcrete", new Color3(0.28, 0.24, 0.20)),
@@ -182,8 +185,45 @@ export function createWorldStream(
           meshes.push(sideInstance);
         }
       }
-      facadeWindow.setEnabled(false);
+      facadeWindow.position.set(0, -1000, 0);
       meshes.push(facadeWindow);
+
+      const facadeFrontZ = z - depth / 2 - 0.02;
+      for (let floor = 0; floor < floorCount; floor++) {
+        const bandY = 0.9 + floor * 4.0;
+        if (bandY > height - 0.8) break;
+        const band = MeshBuilder.CreateBox("facade-band-" + key + "-" + i + "-" + floor, {
+          width: width - 0.7, height: 0.10, depth: 0.08,
+        }, scene);
+        band.position.set(x, bandY, facadeFrontZ);
+        band.material = facadeTrimMaterial;
+        band.freezeWorldMatrix();
+        meshes.push(band);
+      }
+
+      for (const side of [-1, 1]) {
+        const pillar = MeshBuilder.CreateBox("facade-pillar-" + key + "-" + i + "-" + side, {
+          width: 0.18, height: height - 0.6, depth: 0.10,
+        }, scene);
+        pillar.position.set(x + side * (width / 2 - 0.28), height / 2, facadeFrontZ);
+        pillar.material = facadeTrimMaterial;
+        pillar.freezeWorldMatrix();
+        meshes.push(pillar);
+      }
+
+      for (let unit = 0; unit < 2; unit++) {
+        const ac = MeshBuilder.CreateBox("roof-unit-" + key + "-" + i + "-" + unit, {
+          width: 1.2, height: 0.55, depth: 0.8,
+        }, scene);
+        ac.position.set(
+          x - 1.4 + unit * 2.8,
+          height + 0.48,
+          z + depth * 0.18,
+        );
+        ac.material = metalMaterial;
+        ac.freezeWorldMatrix();
+        meshes.push(ac);
+      }
       meshes.push(building);
 
       const roof = MeshBuilder.CreateBox("roof-" + key + "-" + i, {
