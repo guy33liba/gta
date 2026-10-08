@@ -17,6 +17,7 @@ import {
 } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import "@babylonjs/loaders";
+import { createWorldStream } from "./world";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -228,11 +229,10 @@ async function boot() {
   const physicsEnabled = await enablePhysics(scene);
   setProgress(55);
 
-  createCity(scene);
-  setProgress(70);
-
   player = createPlayer(scene);
   car = createCar(scene);
+  const worldStream = createWorldStream(scene, player, material);
+  worldStream.update();
   const camera = createCamera(scene, player);
 
   setProgress(86);
@@ -254,6 +254,8 @@ async function boot() {
     if (!physicsEnabled) {
       active.position.y = driving ? 0.55 : 1.05;
     }
+
+    worldStream.update();
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
