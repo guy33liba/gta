@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   ShadowGenerator,
   Vector3,
 } from "@babylonjs/core";
@@ -16,7 +16,7 @@ const ACTIVE_RADIUS = 2;
 export function createWorldStream(
   scene: Scene,
   focus: Mesh,
-  makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+  makeMaterial: (scene: Scene, name: string, color: Color3) => PBRMaterial,
   shadows: ShadowGenerator,
 ): WorldStream {
   const groundMaterial = makeMaterial(scene, "WorldGround", new Color3(0.045, 0.055, 0.065));
