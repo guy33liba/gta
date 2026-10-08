@@ -14,6 +14,7 @@ import {
   WebGPUEngine,
   DefaultRenderingPipeline,
   ShadowGenerator,
+  ImageProcessingConfiguration,
 } from "@babylonjs/core";
 import "@babylonjs/loaders";
 import { createWorldStream } from "./world";
@@ -325,21 +326,20 @@ async function boot() {
   setProgress(28);
 
   const scene = new Scene(engine);
-  scene.clearColor = new Color4(0.025, 0.035, 0.05, 1);
+  scene.clearColor = new Color4(0.20, 0.30, 0.42, 1);
   const environment = CubeTexture.CreateFromPrefilteredData(
     "https://assets.babylonjs.com/environments/environmentSpecular.env",
     scene,
   );
   scene.environmentTexture = environment;
-  scene.environmentIntensity = 0.72;
-  scene.createDefaultSkybox(environment, true, 1000, 0.22);
+  scene.environmentIntensity = 0.95;
 
   const hemi = new HemisphericLight("sky-light", new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.48;
+  hemi.intensity = 0.72;
 
   const sun = new DirectionalLight("sun", new Vector3(-0.45, -1, -0.3), scene);
   sun.position = new Vector3(40, 70, 30);
-  sun.intensity = 2.15;
+  sun.intensity = 2.45;
 
   const shadows = new ShadowGenerator(1024, sun);
   shadows.useBlurExponentialShadowMap = true;
@@ -365,8 +365,10 @@ async function boot() {
   pipeline.bloomWeight = 0.14;
   pipeline.bloomKernel = 48;
   pipeline.imageProcessingEnabled = true;
-  pipeline.imageProcessing.contrast = 1.12;
-  pipeline.imageProcessing.exposure = 1.04;
+  pipeline.imageProcessing.toneMappingEnabled = true;
+  pipeline.imageProcessing.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
+  pipeline.imageProcessing.contrast = 1.08;
+  pipeline.imageProcessing.exposure = 1.12;
   pipeline.sharpenEnabled = true;
   pipeline.sharpen.edgeAmount = 0.18;
   pipeline.sharpen.colorAmount = 0.65;
