@@ -328,7 +328,12 @@ async function boot() {
     },
   );
 
-  const fire = () => { if (combat.shoot()) audio.gunshot(); };
+  const fire = () => {
+    if (combat.shoot()) {
+      audio.gunshot();
+      pedestrians.notifyGunshot(driving ? car.position : camera.globalPosition);
+    }
+  };
   const reload = () => combat.reload();
   document.querySelector<HTMLButtonElement>("#touch-fire")?.addEventListener("pointerdown", (event) => {
     event.preventDefault();
@@ -368,9 +373,12 @@ async function boot() {
 
     worldStream.update();
     traffic.update(dt);
+    combat.update(dt);
+    wanted.update(dt);
+    pedestrians.setPoliceThreats(wanted.getThreatPositions());
     pedestrians.update(dt);
-    combat.update(dt);\n    wanted.update(dt);
-    missions.update(dt);\n    atmosphere.update(scene, dt);
+    missions.update(dt);
+    atmosphere.update(scene, dt);
 
     if (missionState) {
       missionState.textContent = missions.active ? missions.label : wanted.level > 0 ? "WANTED" : driving ? "DRIVING" : "FREE ROAM";
