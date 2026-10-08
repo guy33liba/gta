@@ -23,6 +23,7 @@ import { VehicleController } from "./vehicle";
 import { TrafficSystem } from "./traffic";
 import { PedestrianSystem } from "./pedestrians";
 import { CombatSystem } from "./combat";
+import { WantedSystem } from "./wanted";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -35,6 +36,7 @@ const loadingScreen = document.querySelector<HTMLElement>("#loading-screen");
 const missionState = document.querySelector<HTMLElement>("#mission-state");
 const ammoValue = document.querySelector<HTMLElement>("#ammo-value");
 const hitMarker = document.querySelector<HTMLElement>("#hit-marker");
+const wantedValue = document.querySelector<HTMLElement>("#wanted-value");
 
 const input: InputState = {};
 let player: Mesh;
@@ -244,6 +246,7 @@ async function boot() {
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const pedestrians = new PedestrianSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
+  const wanted = new WantedSystem(scene, player, car, () => driving, material, (level) => {\n    if (wantedValue) wantedValue.textContent = level > 0 ? "★".repeat(level) : "CLEAR";\n    missionState!.textContent = level > 0 ? "WANTED" : driving ? "DRIVING" : "FREE ROAM";\n  });
   const combat = new CombatSystem(
     scene,
     camera,
@@ -301,7 +304,7 @@ async function boot() {
     worldStream.update();
     traffic.update(dt);
     pedestrians.update(dt);
-    combat.update(dt);
+    combat.update(dt);\n    wanted.update(dt);
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
