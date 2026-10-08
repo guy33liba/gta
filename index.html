@@ -13,17 +13,21 @@
       <section id="hud" aria-label="Game HUD">
         <div id="hud-top">
           <div id="brand">URBAN HEAT</div>
+          <div id="crosshair" aria-hidden="true">+</div>
+          <div id="hit-marker" aria-hidden="true">×</div>
           <div id="mission-state">FREE ROAM</div>
         </div>
         <div id="hud-bottom">
           <div id="status-card">
             <div id="status-health">HEALTH <span id="health-value">100</span></div>
             <div id="status-cash">$<span id="cash-value">250</span></div>
+            <div id="status-ammo">AMMO <span id="ammo-value">12 / 60</span></div>
           </div>
           <div id="controls-card">
             <span>WASD MOVE</span>
             <span>SHIFT SPRINT</span>
             <span>E ENTER VEHICLE</span>
+            <span>CLICK FIRE · R RELOAD</span>
           </div>
         </div>
       </section>
@@ -36,6 +40,7 @@
         </div>
         <div id="touch-actions">
           <button id="touch-enter" type="button" aria-label="Enter or exit vehicle">E</button>
+          <button id="touch-fire" type="button" aria-label="Fire">FIRE</button>
           <button id="touch-sprint" type="button" aria-label="Sprint">RUN</button>
         </div>
       </section>
