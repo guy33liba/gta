@@ -21,6 +21,9 @@ type Pedestrian = {
   awareness: "calm" | "alert" | "fleeing";
   panicTimer: number;
   threat: Vector3;
+  group: number;
+  activityTimer: number;
+  crossCooldown: number;
 };
 
 const ROAD_SPACING = 56;
@@ -133,6 +136,9 @@ export class PedestrianSystem {
       awareness: "calm",
       panicTimer: 0,
       threat: Vector3.Zero(),
+      group: Math.floor(seed / 2),
+      activityTimer: 2 + (seed % 7),
+      crossCooldown: 0,
     });
   }
 
@@ -147,6 +153,8 @@ export class PedestrianSystem {
     }
 
     const position = pedestrian.mesh.position;
+    pedestrian.activityTimer = Math.max(0, pedestrian.activityTimer - dt);
+    pedestrian.crossCooldown = Math.max(0, pedestrian.crossCooldown - dt);
     const threat = this.findThreat(position);
     if (threat) {
       pedestrian.awareness = "fleeing";
@@ -174,19 +182,32 @@ export class PedestrianSystem {
 
     const roadX = Math.round(position.x / ROAD_SPACING) * ROAD_SPACING;
     const roadZ = Math.round(position.z / ROAD_SPACING) * ROAD_SPACING;
-    const nearIntersection = Math.abs(position.x - roadX) < 2 && Math.abs(position.z - roadZ) < 2;
+    const alongIntersection = pedestrian.axis === "x"
+      ? Math.abs(position.x - roadX) < 2.5
+      : Math.abs(position.z - roadZ) < 2.5;
 
-    if (nearIntersection && !pedestrian.crossing) {
+    if (alongIntersection && pedestrian.crossCooldown === 0 && !pedestrian.crossing) {
       pedestrian.crossing = true;
-      if (this.elapsed % 10 < 4) {
-        pedestrian.axis = pedestrian.axis === "x" ? "z" : "x";
-        pedestrian.direction = pedestrian.seed % 3 === 0 ? -pedestrian.direction as 1 | -1 : pedestrian.direction;
-      } else {
-        pedestrian.pause = 0.8 + (pedestrian.seed % 3) * 0.35;
+      pedestrian.crossCooldown = 5 + (pedestrian.seed % 5);
+      if ((pedestrian.seed + Math.floor(this.elapsed / 6)) % 3 !== 0) {
+        const currentSide = pedestrian.axis === "x" ? position.z : position.x;
+        const crossSide = currentSide >= (pedestrian.axis === "x" ? roadZ : roadX) ? -1 : 1;
+        if (pedestrian.axis === "x") {
+          position.z = roadZ + crossSide * SIDEWALK_OFFSET;
+          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as Direction;
+        } else {
+          position.x = roadX + crossSide * SIDEWALK_OFFSET;
+          pedestrian.direction = pedestrian.seed % 2 === 0 ? pedestrian.direction : -pedestrian.direction as Direction;
+        }
       }
     }
 
-    if (!nearIntersection) pedestrian.crossing = false;
+    if (!alongIntersection) pedestrian.crossing = false;
+
+    if (pedestrian.activityTimer === 0 && !pedestrian.crossing) {
+      pedestrian.pause = 0.45 + (pedestrian.seed % 4) * 0.3;
+      pedestrian.activityTimer = 5 + (pedestrian.seed % 9);
+    }
 
     const forward = pedestrian.axis === "x"
       ? new Vector3(pedestrian.direction, 0, 0)
