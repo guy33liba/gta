@@ -18,6 +18,9 @@ type Pedestrian = {
   health: number;
   stagger: number;
   knockback: Vector3;
+  awareness: "calm" | "alert" | "fleeing";
+  panicTimer: number;
+  threat: Vector3;
 };
 
 const ROAD_SPACING = 56;
@@ -31,6 +34,8 @@ export class PedestrianSystem {
   private readonly bodyMaterial: StandardMaterial;
   private readonly shirtMaterials: StandardMaterial[];
   private elapsed = 0;
+  private gunshotThreats: Array<{ position: Vector3; timer: number }> = [];
+  private policeThreats: Vector3[] = [];
 
   constructor(
     private readonly scene: Scene,
@@ -62,8 +67,21 @@ export class PedestrianSystem {
     return true;
   }
 
+  notifyGunshot(position: Vector3) {
+    this.gunshotThreats.push({ position: position.clone(), timer: 2.8 });
+    if (this.gunshotThreats.length > 6) this.gunshotThreats.shift();
+  }
+
+  setPoliceThreats(positions: Vector3[]) {
+    this.policeThreats = positions;
+  }
+
   update(dt: number) {
     this.elapsed += dt;
+    for (let i = this.gunshotThreats.length - 1; i >= 0; i--) {
+      this.gunshotThreats[i].timer -= dt;
+      if (this.gunshotThreats[i].timer <= 0) this.gunshotThreats.splice(i, 1);
+    }
     this.ensurePopulation();
     for (const pedestrian of this.pedestrians) this.updatePedestrian(pedestrian, dt);
     this.despawnFarPedestrians();
@@ -112,18 +130,48 @@ export class PedestrianSystem {
       health: 100,
       stagger: 0,
       knockback: Vector3.Zero(),
+      awareness: "calm",
+      panicTimer: 0,
+      threat: Vector3.Zero(),
     });
   }
 
   private updatePedestrian(pedestrian: Pedestrian, dt: number) {
-    if (pedestrian.stagger > 0) { pedestrian.stagger = Math.max(0, pedestrian.stagger - dt); pedestrian.mesh.rotation.z *= Math.max(0, 1 - dt * 6); }
-    if (pedestrian.knockback.lengthSquared() > 0.01) { pedestrian.mesh.position.addInPlace(pedestrian.knockback.scale(dt)); pedestrian.knockback.scaleInPlace(Math.max(0, 1 - dt * 9)); }
+    if (pedestrian.stagger > 0) {
+      pedestrian.stagger = Math.max(0, pedestrian.stagger - dt);
+      pedestrian.mesh.rotation.z *= Math.max(0, 1 - dt * 6);
+    }
+    if (pedestrian.knockback.lengthSquared() > 0.01) {
+      pedestrian.mesh.position.addInPlace(pedestrian.knockback.scale(dt));
+      pedestrian.knockback.scaleInPlace(Math.max(0, 1 - dt * 9));
+    }
+
+    const position = pedestrian.mesh.position;
+    const threat = this.findThreat(position);
+    if (threat) {
+      pedestrian.awareness = "fleeing";
+      pedestrian.panicTimer = Math.max(pedestrian.panicTimer, threat.distance < 12 ? 4.5 : 3.2);
+      pedestrian.threat.copyFrom(threat.position);
+    } else if (pedestrian.panicTimer > 0) {
+      pedestrian.panicTimer = Math.max(0, pedestrian.panicTimer - dt);
+      if (pedestrian.panicTimer === 0) pedestrian.awareness = "calm";
+    }
+
+    if (pedestrian.pause > 0 && pedestrian.awareness !== "fleeing") {
+      pedestrian.pause -= dt;
+      return;
+    }
+
+    if (pedestrian.awareness === "fleeing") {
+      this.updateFleeingPedestrian(pedestrian, dt);
+      return;
+    }
+
     if (pedestrian.pause > 0) {
       pedestrian.pause -= dt;
       return;
     }
 
-    const position = pedestrian.mesh.position;
     const roadX = Math.round(position.x / ROAD_SPACING) * ROAD_SPACING;
     const roadZ = Math.round(position.z / ROAD_SPACING) * ROAD_SPACING;
     const nearIntersection = Math.abs(position.x - roadX) < 2 && Math.abs(position.z - roadZ) < 2;
@@ -143,8 +191,7 @@ export class PedestrianSystem {
     const forward = pedestrian.axis === "x"
       ? new Vector3(pedestrian.direction, 0, 0)
       : new Vector3(0, 0, pedestrian.direction);
-    const blocked = this.isBlocked(pedestrian, forward);
-    if (blocked) {
+    if (this.isBlocked(pedestrian, forward)) {
       pedestrian.pause = 0.45;
       return;
     }
@@ -152,6 +199,40 @@ export class PedestrianSystem {
     position.addInPlace(forward.scale(pedestrian.speed * dt));
     position.y = 1.05;
     pedestrian.mesh.rotation.y = Math.atan2(forward.x, forward.z);
+  }
+
+  private updateFleeingPedestrian(pedestrian: Pedestrian, dt: number) {
+    const away = pedestrian.mesh.position.subtract(pedestrian.threat);
+    away.y = 0;
+    if (away.lengthSquared() < 0.01) away.copyFrom(new Vector3(1, 0, 0));
+    away.normalize();
+
+    const side = new Vector3(-away.z, 0, away.x);
+    const sidestep = Math.sin(this.elapsed * 4 + pedestrian.seed) * 0.22;
+    const escapeDirection = away.add(side.scale(sidestep)).normalize();
+    const speed = 4.2 + (pedestrian.seed % 4) * 0.35;
+
+    if (!this.isBlocked(pedestrian, escapeDirection)) {
+      pedestrian.mesh.position.addInPlace(escapeDirection.scale(speed * dt));
+    } else {
+      pedestrian.mesh.position.addInPlace(side.scale((pedestrian.seed % 2 === 0 ? 1 : -1) * speed * dt));
+    }
+    pedestrian.mesh.position.y = 1.05;
+    pedestrian.mesh.rotation.y = Math.atan2(escapeDirection.x, escapeDirection.z);
+    pedestrian.mesh.rotation.z = Math.sin(this.elapsed * 14 + pedestrian.seed) * 0.045;
+  }
+
+  private findThreat(position: Vector3) {
+    let best: { position: Vector3; distance: number } | null = null;
+    for (const gunshot of this.gunshotThreats) {
+      const distance = Vector3.Distance(position, gunshot.position);
+      if (distance < 28 && (!best || distance < best.distance)) best = { position: gunshot.position, distance };
+    }
+    for (const police of this.policeThreats) {
+      const distance = Vector3.Distance(position, police);
+      if (distance < 18 && (!best || distance < best.distance)) best = { position: police, distance };
+    }
+    return best;
   }
 
   private isBlocked(pedestrian: Pedestrian, forward: Vector3) {
