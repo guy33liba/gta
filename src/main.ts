@@ -8,15 +8,12 @@ import {
   HemisphericLight,
   Mesh,
   MeshBuilder,
-  PhysicsAggregate,
-  PhysicsShapeType,
   Scene,
   StandardMaterial,
   Vector3,
   WebGPUEngine,
   Camera,
 } from "@babylonjs/core";
-import HavokPhysics from "@babylonjs/havok";
 import "@babylonjs/loaders";
 import { createWorldStream } from "./world";
 import { VehicleController } from "./vehicle";
@@ -77,18 +74,6 @@ async function createEngine(): Promise<Engine> {
   return new Engine(canvas, true, { adaptToDeviceRatio: true, antialias: true });
 }
 
-async function enablePhysics(scene: Scene) {
-  try {
-    const havok = await HavokPhysics();
-    const plugin = new HavokPlugin(true, havok);
-    scene.enablePhysics(new Vector3(0, -9.81, 0), plugin);
-    return true;
-  } catch (error) {
-    console.warn("Havok physics unavailable; continuing with kinematic fallback.", error);
-    return false;
-  }
-}
-
 function createCity(scene: Scene) {
   const groundMat = material(scene, "Ground", new Color3(0.045, 0.055, 0.065));
   const roadMat = material(scene, "Road", new Color3(0.018, 0.022, 0.028));
@@ -100,7 +85,6 @@ function createCity(scene: Scene) {
 
   const ground = MeshBuilder.CreateGround("city-ground", { width: 180, height: 180 }, scene);
   ground.material = groundMat;
-  new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, restitution: 0.05, friction: 0.9 }, scene);
 
   const roadWidth = 12;
   for (let i = -3; i <= 3; i++) {
@@ -251,8 +235,6 @@ async function boot() {
   sun.position = new Vector3(40, 70, 30);
   sun.intensity = 1.7;
 
-  setProgress(42);
-  const physicsEnabled = await enablePhysics(scene);
   setProgress(55);
 
   player = createPlayer(scene);
@@ -367,9 +349,7 @@ async function boot() {
       active.rotation.y = Math.atan2(direction.x, direction.z);
     }
 
-    if (!physicsEnabled) {
-      active.position.y = driving ? 0.55 : 1.05;
-    }
+    active.position.y = driving ? 0.55 : 1.05;
 
     worldStream.update();
     traffic.update(dt);
