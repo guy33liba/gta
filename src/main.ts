@@ -360,7 +360,7 @@ async function boot() {
     const target = driving ? car : player;
     const speedRatio = driving ? Math.min(1, Math.abs(vehicleController.getSpeed()) / 26) : 0;
     camera.alpha = Math.PI + target.rotation.y;
-    camera.beta = driving ? 1.12 - speedRatio * 0.035 : 1.08;
+    camera.beta = (driving ? 1.12 - speedRatio * 0.035 : 1.08) - combat.recoilKick;
     camera.radius = driving ? 7.5 + speedRatio * 0.9 : 9;
     if (driving) camera.target.y = target.position.y + speedRatio * 0.12;
     camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
