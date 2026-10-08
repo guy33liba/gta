@@ -5,6 +5,7 @@ import {
   Scene,
   StandardMaterial,
   Vector3,
+  Ray,
 } from "@babylonjs/core";
 
 type PoliceUnit = {
@@ -13,6 +14,8 @@ type PoliceUnit = {
   targetOffset: Vector3;
   sirenPhase: number;
   role: "chase" | "intercept" | "blockade";
+  shotCooldown: number;
+  combatOffset: number;
 };
 
 export class WantedSystem {
@@ -32,6 +35,7 @@ export class WantedSystem {
     private readonly isDriving: () => boolean,
     makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
     private readonly onWantedChange: (level: number) => void,
+    private readonly onPlayerDamage: (amount: number) => void,
   ) {
     this.policeMaterial = makeMaterial(scene, "PoliceVehicle", new Color3(0.035, 0.055, 0.09));
     this.lightMaterial = makeMaterial(scene, "PoliceLight", new Color3(0.75, 0.05, 0.08));
@@ -109,6 +113,8 @@ export class WantedSystem {
       targetOffset: new Vector3(0, 0, 0),
       sirenPhase: index * 0.7,
       role: "chase",
+      shotCooldown: 0.4 + index * 0.18,
+      combatOffset: index % 2 === 0 ? 1 : -1,
     });
   }
 
@@ -119,6 +125,7 @@ export class WantedSystem {
       : new Vector3(Math.sin(target.rotation.y), 0, Math.cos(target.rotation.y));
 
     for (const [index, unit] of this.units.entries()) {
+      unit.shotCooldown = Math.max(0, unit.shotCooldown - dt);
       let goal = target.position.clone();
 
       if (unit.role === "intercept") {
@@ -157,6 +164,7 @@ export class WantedSystem {
       }
 
       const targetDistance = Vector3.Distance(unit.mesh.position, target.position);
+      this.updatePoliceCombat(unit, target, targetDistance);
       if (targetDistance < 3.2 && this.wanted >= 3) {
         const push = unit.mesh.position.subtract(target.position);
         push.y = 0;
@@ -172,6 +180,24 @@ export class WantedSystem {
         siren.scaling.z = 0.85 + pulse * 0.3;
       }
     }
+  }
+
+
+  private updatePoliceCombat(unit: PoliceUnit, target: Mesh, targetDistance: number) {
+    if (this.wanted < 1 || targetDistance > 42 || unit.shotCooldown > 0) return;
+
+    const origin = unit.mesh.position.add(new Vector3(0, 0.8, 0));
+    const targetPoint = target.position.add(new Vector3(0, this.isDriving() ? 0.55 : 0.8, 0));
+    const toTarget = targetPoint.subtract(origin);
+    const distance = toTarget.length();
+    if (distance <= 0.1) return;
+
+    const direction = toTarget.scale(1 / distance);
+    const hit = this.scene.pickWithRay(new Ray(origin, direction, distance + 0.5));
+    if (hit?.pickedMesh !== target) return;
+
+    unit.shotCooldown = Math.max(0.42, 0.9 - this.wanted * 0.07 + unit.combatOffset * 0.06);
+    this.onPlayerDamage(this.wanted >= 4 ? 9 : 6);
   }
 
   private roadPosition(position: Vector3) {
