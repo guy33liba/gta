@@ -4,14 +4,19 @@ import {
   Color4,
   DirectionalLight,
   Engine,
+  HavokPlugin,
   HemisphericLight,
   Mesh,
   MeshBuilder,
+  PhysicsAggregate,
+  PhysicsShapeType,
   Scene,
   StandardMaterial,
   Vector3,
   WebGPUEngine,
 } from "@babylonjs/core";
+import HavokPhysics from "@babylonjs/havok";
+import "@babylonjs/loaders";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -27,7 +32,6 @@ const input: InputState = {};
 let player: Mesh;
 let car: Mesh;
 let driving = false;
-let elapsed = 0;
 
 const setProgress = (value: number) => {
   if (progress) progress.style.width = value + "%";
@@ -56,6 +60,18 @@ async function createEngine(): Promise<Engine> {
   return new Engine(canvas, true, { adaptToDeviceRatio: true, antialias: true });
 }
 
+async function enablePhysics(scene: Scene) {
+  try {
+    const havok = await HavokPhysics();
+    const plugin = new HavokPlugin(true, havok);
+    scene.enablePhysics(new Vector3(0, -9.81, 0), plugin);
+    return true;
+  } catch (error) {
+    console.warn("Havok physics unavailable; continuing with kinematic fallback.", error);
+    return false;
+  }
+}
+
 function createCity(scene: Scene) {
   const groundMat = material(scene, "Ground", new Color3(0.045, 0.055, 0.065));
   const roadMat = material(scene, "Road", new Color3(0.018, 0.022, 0.028));
@@ -67,6 +83,7 @@ function createCity(scene: Scene) {
 
   const ground = MeshBuilder.CreateGround("city-ground", { width: 180, height: 180 }, scene);
   ground.material = groundMat;
+  new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, restitution: 0.05, friction: 0.9 }, scene);
 
   const roadWidth = 12;
   for (let i = -3; i <= 3; i++) {
@@ -84,7 +101,7 @@ function createCity(scene: Scene) {
   let index = 0;
   for (let x = -3; x <= 3; x++) {
     for (let z = -3; z <= 3; z++) {
-      if (Math.abs(x) <= 0 && Math.abs(z) <= 0) continue;
+      if (x === 0 && z === 0) continue;
       const bx = x * 28 + (x % 2 === 0 ? 5 : -5);
       const bz = z * 28 + (z % 2 === 0 ? -4 : 4);
       const width = 13 + ((index * 7) % 7);
@@ -93,6 +110,7 @@ function createCity(scene: Scene) {
       const building = MeshBuilder.CreateBox("building-" + index, { width, depth, height }, scene);
       building.position.set(bx, height / 2, bz);
       building.material = buildingMats[index % buildingMats.length];
+      new PhysicsAggregate(building, PhysicsShapeType.BOX, { mass: 0, restitution: 0, friction: 0.8 }, scene);
       index++;
     }
   }
@@ -101,6 +119,7 @@ function createCity(scene: Scene) {
     const lamp = MeshBuilder.CreateCylinder("lamp-" + i, { height: 5, diameter: 0.12 }, scene);
     lamp.position.set(6, 2.5, i);
     lamp.material = groundMat;
+
     const head = MeshBuilder.CreateSphere("lamp-head-" + i, { diameter: 0.35, segments: 8 }, scene);
     head.position.set(6, 5, i);
     head.material = material(scene, "LampGlow" + i, new Color3(1, 0.68, 0.25));
@@ -111,6 +130,7 @@ function createPlayer(scene: Scene) {
   const body = MeshBuilder.CreateCapsule("player", { height: 2.1, radius: 0.42 }, scene);
   body.position.set(0, 1.05, 0);
   body.material = material(scene, "Player", new Color3(0.12, 0.42, 0.8));
+  new PhysicsAggregate(body, PhysicsShapeType.CAPSULE, { mass: 70, restitution: 0, friction: 0.4 }, scene);
   return body;
 }
 
@@ -118,6 +138,7 @@ function createCar(scene: Scene) {
   const body = MeshBuilder.CreateBox("car", { width: 2.1, height: 0.55, depth: 4.1 }, scene);
   body.position.set(8, 0.55, 8);
   body.material = material(scene, "CarPaint", new Color3(0.65, 0.07, 0.05));
+  new PhysicsAggregate(body, PhysicsShapeType.BOX, { mass: 1250, restitution: 0.05, friction: 0.7 }, scene);
 
   const roof = MeshBuilder.CreateBox("car-roof", { width: 1.75, height: 0.5, depth: 1.9 }, scene);
   roof.position.set(8, 0.98, 7.8);
@@ -137,31 +158,7 @@ function createCamera(scene: Scene, target: Mesh) {
   return camera;
 }
 
-async function boot() {
-  setProgress(10);
-  const engine = await createEngine();
-  setProgress(30);
-
-  const scene = new Scene(engine);
-  scene.clearColor = new Color4(0.025, 0.035, 0.05, 1);
-
-  const hemi = new HemisphericLight("sky-light", new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.55;
-
-  const sun = new DirectionalLight("sun", new Vector3(-0.45, -1, -0.3), scene);
-  sun.position = new Vector3(40, 70, 30);
-  sun.intensity = 1.7;
-
-  setProgress(50);
-  createCity(scene);
-  setProgress(70);
-
-  player = createPlayer(scene);
-  car = createCar(scene);
-  const camera = createCamera(scene, player);
-
-  setProgress(90);
-
+function setupInput() {
   window.addEventListener("keydown", (event) => {
     input[event.key.toLowerCase()] = true;
     if (event.key.toLowerCase() === "e" && Vector3.Distance(player.position, car.position) < 5) {
@@ -174,11 +171,39 @@ async function boot() {
   window.addEventListener("keyup", (event) => {
     input[event.key.toLowerCase()] = false;
   });
+}
+
+async function boot() {
+  setProgress(8);
+  const engine = await createEngine();
+  setProgress(28);
+
+  const scene = new Scene(engine);
+  scene.clearColor = new Color4(0.025, 0.035, 0.05, 1);
+
+  const hemi = new HemisphericLight("sky-light", new Vector3(0, 1, 0), scene);
+  hemi.intensity = 0.55;
+
+  const sun = new DirectionalLight("sun", new Vector3(-0.45, -1, -0.3), scene);
+  sun.position = new Vector3(40, 70, 30);
+  sun.intensity = 1.7;
+
+  setProgress(42);
+  const physicsEnabled = await enablePhysics(scene);
+  setProgress(55);
+
+  createCity(scene);
+  setProgress(70);
+
+  player = createPlayer(scene);
+  car = createCar(scene);
+  const camera = createCamera(scene, player);
+
+  setProgress(86);
+  setupInput();
 
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
-    elapsed += dt;
-
     const active = driving ? car : player;
     const speed = driving ? 11 : (input.shift ? 7 : 4.5);
     const forward = input.w ? 1 : input.s ? -1 : 0;
@@ -190,21 +215,14 @@ async function boot() {
       active.rotation.y = Math.atan2(direction.x, direction.z);
     }
 
-    if (driving) {
-      car.position.y = 0.55;
-      camera.target = car.position;
-    } else {
-      camera.target = player.position;
+    if (!physicsEnabled) {
+      active.position.y = driving ? 0.55 : 1.05;
     }
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
     camera.beta = 1.08;
     camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
-
-    // Simple ambient city pulse for the prototype.
-    if (Math.floor(elapsed) % 2 === 0) sun.intensity = 1.7;
-    else sun.intensity = 1.62;
 
     scene.render();
   });
@@ -216,5 +234,7 @@ async function boot() {
 
 boot().catch((error) => {
   console.error(error);
-  if (loadingScreen) loadingScreen.innerHTML = "<div id='loading-title'>LOAD ERROR</div><div id='loading-copy'>OPEN THE CONSOLE FOR DETAILS</div>";
+  if (loadingScreen) {
+    loadingScreen.innerHTML = "<div id='loading-title'>LOAD ERROR</div><div id='loading-copy'>OPEN THE CONSOLE FOR DETAILS</div>";
+  }
 });
