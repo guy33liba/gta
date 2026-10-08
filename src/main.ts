@@ -2,6 +2,7 @@ import {
   ArcRotateCamera,
   Color3,
   Color4,
+  CubeTexture,
   DirectionalLight,
   Engine,
   HemisphericLight,
@@ -325,17 +326,24 @@ async function boot() {
 
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0.025, 0.035, 0.05, 1);
+  const environment = CubeTexture.CreateFromPrefilteredData(
+    "https://assets.babylonjs.com/environments/environmentSpecular.env",
+    scene,
+  );
+  scene.environmentTexture = environment;
+  scene.environmentIntensity = 0.72;
+  scene.createDefaultSkybox(environment, true, 1000, 0.22);
 
   const hemi = new HemisphericLight("sky-light", new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.55;
+  hemi.intensity = 0.48;
 
   const sun = new DirectionalLight("sun", new Vector3(-0.45, -1, -0.3), scene);
   sun.position = new Vector3(40, 70, 30);
-  sun.intensity = 1.7;
+  sun.intensity = 2.15;
 
   const shadows = new ShadowGenerator(1024, sun);
   shadows.useBlurExponentialShadowMap = true;
-  shadows.blurKernel = 24;
+  shadows.blurKernel = 32;
   shadows.setDarkness(0.32);
 
   setProgress(55);
