@@ -341,7 +341,9 @@ async function boot() {
 
   player = createPlayer(scene);
   car = createCar(scene);
-  shadows.addShadowCaster(player);\n  shadows.addShadowCaster(car);\n  const worldStream = createWorldStream(scene, player, material, shadows);
+  shadows.addShadowCaster(player);
+  shadows.addShadowCaster(car);
+  const worldStream = createWorldStream(scene, player, material, shadows);
   worldStream.update();
   vehicleController = new VehicleController(car);
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
