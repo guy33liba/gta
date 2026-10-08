@@ -21,7 +21,6 @@ export class WantedSystem {
   private wanted = 0;
   private crimeTimer = 0;
   private searchTimer = 0;
-  private spawnTimer = 0;
   private elapsed = 0;
 
   constructor(
@@ -34,6 +33,10 @@ export class WantedSystem {
   ) {
     this.policeMaterial = makeMaterial(scene, "PoliceVehicle", new Color3(0.035, 0.055, 0.09));
     this.lightMaterial = makeMaterial(scene, "PoliceLight", new Color3(0.75, 0.05, 0.08));
+  }
+
+  get level() {
+    return this.wanted;
   }
 
   addCrime(amount = 1) {
