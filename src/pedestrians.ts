@@ -15,6 +15,7 @@ type Pedestrian = {
   seed: number;
   pause: number;
   crossing: boolean;
+  health: number;
 };
 
 const ROAD_SPACING = 56;
@@ -102,6 +103,7 @@ export class PedestrianSystem {
       seed,
       pause: 0,
       crossing: false,
+      health: 100,
     });
   }
 
