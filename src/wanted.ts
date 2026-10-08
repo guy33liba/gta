@@ -12,6 +12,7 @@ type PoliceUnit = {
   speed: number;
   targetOffset: Vector3;
   sirenPhase: number;
+  role: "chase" | "intercept" | "blockade";
 };
 
 export class WantedSystem {
@@ -22,6 +23,7 @@ export class WantedSystem {
   private crimeTimer = 0;
   private searchTimer = 0;
   private elapsed = 0;
+  private lastTargetPosition = new Vector3();
 
   constructor(
     private readonly scene: Scene,
@@ -33,6 +35,7 @@ export class WantedSystem {
   ) {
     this.policeMaterial = makeMaterial(scene, "PoliceVehicle", new Color3(0.035, 0.055, 0.09));
     this.lightMaterial = makeMaterial(scene, "PoliceLight", new Color3(0.75, 0.05, 0.08));
+    this.lastTargetPosition.copyFrom(player.position);
   }
 
   get level() {
@@ -49,6 +52,10 @@ export class WantedSystem {
   update(dt: number) {
     this.elapsed += dt;
     const target = this.isDriving() ? this.car : this.player;
+    const velocity = target.position.subtract(this.lastTargetPosition);
+    velocity.y = 0;
+    const targetVelocity = velocity.scale(1 / Math.max(dt, 0.016));
+    this.lastTargetPosition.copyFrom(target.position);
 
     if (this.wanted > 0) {
       this.crimeTimer = Math.max(0, this.crimeTimer - dt);
@@ -63,7 +70,7 @@ export class WantedSystem {
     }
 
     this.syncPolice(target);
-    this.updateUnits(target, dt);
+    this.updateUnits(target, targetVelocity, dt);
   }
 
   private syncPolice(target: Mesh) {
@@ -73,13 +80,22 @@ export class WantedSystem {
       const unit = this.units.pop();
       unit?.mesh.dispose(false, true);
     }
+
+    this.units.forEach((unit, index) => {
+      unit.role = this.wanted >= 3 && index === 1
+        ? "blockade"
+        : this.wanted >= 2 && index === 0
+          ? "intercept"
+          : "chase";
+    });
   }
 
   private spawnPolice(target: Mesh, index: number) {
     const angle = (index / Math.max(1, this.wanted + 1)) * Math.PI * 2 + 0.8;
     const distance = 38 + index * 12;
+    const spawn = this.roadPosition(target.position.add(new Vector3(Math.cos(angle) * distance, 0, Math.sin(angle) * distance)));
     const mesh = MeshBuilder.CreateBox("police-car", { width: 2.15, height: 0.58, depth: 4.25 }, this.scene);
-    mesh.position = target.position.add(new Vector3(Math.cos(angle) * distance, 0.58, Math.sin(angle) * distance));
+    mesh.position = new Vector3(spawn.x, 0.58, spawn.z);
     mesh.material = this.policeMaterial;
 
     const siren = MeshBuilder.CreateBox("police-siren", { width: 0.55, height: 0.12, depth: 0.35 }, this.scene);
@@ -92,28 +108,83 @@ export class WantedSystem {
       speed: 8.5 + index * 0.9,
       targetOffset: new Vector3(0, 0, 0),
       sirenPhase: index * 0.7,
+      role: "chase",
     });
   }
 
-  private updateUnits(target: Mesh, dt: number) {
-    for (const unit of this.units) {
-      const toTarget = target.position.subtract(unit.mesh.position);
-      toTarget.y = 0;
-      const distance = toTarget.length();
-      if (distance < 0.001) continue;
+  private updateUnits(target: Mesh, targetVelocity: Vector3, dt: number) {
+    const predicted = target.position.add(targetVelocity.scale(Math.min(2.4, 0.8 + this.wanted * 0.25)));
+    const forward = targetVelocity.lengthSquared() > 0.25
+      ? targetVelocity.normalize()
+      : new Vector3(Math.sin(target.rotation.y), 0, Math.cos(target.rotation.y));
 
-      const desired = toTarget.normalize();
-      const speed = unit.speed + Math.min(8, this.wanted * 1.2);
-      unit.mesh.position.addInPlace(desired.scale(Math.min(speed * dt, distance)));
+    for (const [index, unit] of this.units.entries()) {
+      let goal = target.position.clone();
+
+      if (unit.role === "intercept") {
+        goal = this.roadPosition(predicted.add(forward.scale(18 + this.wanted * 4)));
+      } else if (unit.role === "blockade") {
+        const side = new Vector3(-forward.z, 0, forward.x);
+        goal = this.roadPosition(predicted.add(forward.scale(34)).add(side.scale(index % 2 === 0 ? 5 : -5)));
+      } else {
+        const side = new Vector3(-forward.z, 0, forward.x);
+        const offset = side.scale(index % 2 === 0 ? 4 : -4);
+        goal = this.roadPosition(target.position.add(offset));
+      }
+
+      const toGoal = goal.subtract(unit.mesh.position);
+      toGoal.y = 0;
+      const distance = toGoal.length();
+      if (distance < 0.8) continue;
+
+      const desired = toGoal.normalize();
+      const baseSpeed = unit.speed + Math.min(10, this.wanted * 1.6);
+      const closingBoost = distance > 80 ? 2.5 : 0;
+      const speed = baseSpeed + closingBoost;
+      const step = Math.min(speed * dt, distance);
+      unit.mesh.position.addInPlace(desired.scale(step));
       unit.mesh.position.y = 0.58;
       unit.mesh.rotation.y = Math.atan2(desired.x, desired.z);
 
+      for (const other of this.units) {
+        if (other === unit) continue;
+        const separation = unit.mesh.position.subtract(other.mesh.position);
+        separation.y = 0;
+        const d = separation.length();
+        if (d > 0 && d < 4.5) {
+          unit.mesh.position.addInPlace(separation.normalize().scale((4.5 - d) * dt * 3));
+        }
+      }
+
+      const targetDistance = Vector3.Distance(unit.mesh.position, target.position);
+      if (targetDistance < 3.2 && this.wanted >= 3) {
+        const push = unit.mesh.position.subtract(target.position);
+        push.y = 0;
+        if (push.lengthSquared() > 0.01) {
+          target.position.addInPlace(push.normalize().scale(dt * 1.2));
+        }
+      }
+
       const siren = unit.mesh.getChildren()[0] as Mesh | undefined;
       if (siren) {
-        siren.scaling.x = 0.85 + Math.abs(Math.sin(this.elapsed * 8 + unit.sirenPhase)) * 0.3;
-        siren.scaling.z = 0.85 + Math.abs(Math.sin(this.elapsed * 8 + unit.sirenPhase)) * 0.3;
+        const pulse = Math.abs(Math.sin(this.elapsed * 8 + unit.sirenPhase));
+        siren.scaling.x = 0.85 + pulse * 0.3;
+        siren.scaling.z = 0.85 + pulse * 0.3;
       }
     }
+  }
+
+  private roadPosition(position: Vector3) {
+    const road = 56;
+    const nearestX = Math.round(position.x / road) * road;
+    const nearestZ = Math.round(position.z / road) * road;
+    const dx = Math.abs(position.x - nearestX);
+    const dz = Math.abs(position.z - nearestZ);
+
+    if (dx < dz) {
+      return new Vector3(nearestX, 0.58, position.z);
+    }
+    return new Vector3(position.x, 0.58, nearestZ);
   }
 
   private getClosestUnitPosition() {
