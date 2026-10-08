@@ -2,8 +2,6 @@ import {
   Color3,
   Mesh,
   MeshBuilder,
-  PhysicsAggregate,
-  PhysicsShapeType,
   Scene,
   StandardMaterial,
   Vector3,
@@ -34,9 +32,8 @@ export function createWorldStream(
 
   const ground = MeshBuilder.CreateGround("world-ground", { width: 800, height: 800 }, scene);
   ground.material = groundMaterial;
-  new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, restitution: 0.05, friction: 0.9 }, scene);
 
-  type Chunk = { meshes: Mesh[]; bodies: PhysicsAggregate[] };
+  type Chunk = { meshes: Mesh[] };
   const chunks = new Map<string, Chunk>();
 
   const load = (cx: number, cz: number) => {
@@ -44,7 +41,6 @@ export function createWorldStream(
     if (chunks.has(key)) return;
 
     const meshes: Mesh[] = [];
-    const bodies: PhysicsAggregate[] = [];
     const ox = cx * CHUNK_SIZE;
     const oz = cz * CHUNK_SIZE;
 
@@ -108,10 +104,6 @@ export function createWorldStream(
       building.scaling = new Vector3(1, 1, 1);
       building.freezeWorldMatrix();
 
-      const body = new PhysicsAggregate(building, PhysicsShapeType.BOX, {
-        mass: 0, restitution: 0, friction: 0.8,
-      }, scene);
-      bodies.push(body);
       meshes.push(building);
 
       const roof = MeshBuilder.CreateBox("roof-" + key + "-" + i, {
@@ -150,13 +142,12 @@ export function createWorldStream(
       meshes.push(crown);
     }
 
-    chunks.set(key, { meshes, bodies });
+    chunks.set(key, { meshes });
   };
 
   const unload = (key: string) => {
     const chunk = chunks.get(key);
     if (!chunk) return;
-    for (const body of chunk.bodies) body.dispose();
     for (const mesh of chunk.meshes) mesh.dispose();
     chunks.delete(key);
   };
