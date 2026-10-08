@@ -24,6 +24,13 @@ export function createWorldStream(
   const grassMaterial = makeMaterial(scene, "WorldGrass", new Color3(0.05, 0.16, 0.07));
   const trunkMaterial = makeMaterial(scene, "WorldTreeTrunk", new Color3(0.16, 0.09, 0.045));
   const leafMaterial = makeMaterial(scene, "WorldTreeLeaf", new Color3(0.035, 0.20, 0.08));
+  const windowMaterial = makeMaterial(scene, "WorldWindows", new Color3(0.025, 0.07, 0.11));
+  windowMaterial.emissiveColor = new Color3(0.015, 0.045, 0.07);
+  windowMaterial.specularPower = 96;
+  const warmWindowMaterial = makeMaterial(scene, "WorldWarmWindows", new Color3(0.18, 0.11, 0.055));
+  warmWindowMaterial.emissiveColor = new Color3(0.09, 0.055, 0.02);
+  const curbMaterial = makeMaterial(scene, "WorldCurb", new Color3(0.20, 0.21, 0.22));
+  const metalMaterial = makeMaterial(scene, "WorldStreetMetal", new Color3(0.055, 0.065, 0.075));
   const buildingMaterials = [
     makeMaterial(scene, "WorldConcrete", new Color3(0.22, 0.24, 0.27)),
     makeMaterial(scene, "WorldWarmConcrete", new Color3(0.28, 0.24, 0.20)),
@@ -58,6 +65,19 @@ export function createWorldStream(
     horizontalRoad.material = roadMaterial;
     meshes.push(horizontalRoad);
 
+    const curbPieces = [
+      { x: -7, z: 0, w: 0.35, d: CHUNK_SIZE },
+      { x: 7, z: 0, w: 0.35, d: CHUNK_SIZE },
+      { x: 0, z: -7, w: CHUNK_SIZE, d: 0.35 },
+      { x: 0, z: 7, w: CHUNK_SIZE, d: 0.35 },
+    ];
+    for (const piece of curbPieces) {
+      const curb = MeshBuilder.CreateBox("curb-" + key, { width: piece.w, height: 0.16, depth: piece.d }, scene);
+      curb.position.set(ox + piece.x, 0.12, oz + piece.z);
+      curb.material = curbMaterial;
+      meshes.push(curb);
+    }
+
     const sidewalkPieces = [
       { x: -8, z: 0, w: 4, d: CHUNK_SIZE },
       { x: 8, z: 0, w: 4, d: CHUNK_SIZE },
@@ -87,6 +107,22 @@ export function createWorldStream(
       horizontalMark.position.set(ox, 0.06, oz + lane * 3);
       horizontalMark.material = laneMaterial;
       meshes.push(horizontalMark);
+    }
+
+    for (let stripe = -4; stripe <= 4; stripe += 2) {
+      const crosswalkV = MeshBuilder.CreateBox("crosswalk-v-" + key + "-" + stripe, {
+        width: 0.9, height: 0.028, depth: 5.5,
+      }, scene);
+      crosswalkV.position.set(ox + stripe, 0.055, oz - 8.8);
+      crosswalkV.material = laneMaterial;
+      meshes.push(crosswalkV);
+
+      const crosswalkH = MeshBuilder.CreateBox("crosswalk-h-" + key + "-" + stripe, {
+        width: 5.5, height: 0.028, depth: 0.9,
+      }, scene);
+      crosswalkH.position.set(ox - 8.8, 0.06, oz + stripe);
+      crosswalkH.material = laneMaterial;
+      meshes.push(crosswalkH);
     }
 
     for (let i = 0; i < 6; i++) {
@@ -121,6 +157,33 @@ export function createWorldStream(
       awning.material = buildingMaterials[(i + 2) % buildingMaterials.length];
       awning.freezeWorldMatrix();
       meshes.push(awning);
+    }
+
+    for (let i = 0; i < 2; i++) {
+      const pole = MeshBuilder.CreateCylinder("street-pole-" + key + "-" + i, {
+        height: 6.2, diameter: 0.12, tessellation: 8,
+      }, scene);
+      pole.position.set(ox + (i === 0 ? -10 : 10), 3.1, oz - 13);
+      pole.material = metalMaterial;
+      pole.freezeWorldMatrix();
+      meshes.push(pole);
+
+      const arm = MeshBuilder.CreateBox("street-arm-" + key + "-" + i, {
+        width: 2.2, height: 0.08, depth: 0.08,
+      }, scene);
+      arm.position.set(pole.position.x + (i === 0 ? 0.9 : -0.9), 6.05, pole.position.z);
+      arm.material = metalMaterial;
+      arm.freezeWorldMatrix();
+      meshes.push(arm);
+
+      const lamp = MeshBuilder.CreateSphere("street-lamp-" + key + "-" + i, {
+        diameter: 0.34, segments: 8,
+      }, scene);
+      lamp.position.set(arm.position.x + (i === 0 ? 0.85 : -0.85), 6.0, arm.position.z);
+      const lampMaterial = makeMaterial(scene, "LampGlow-" + key + "-" + i, new Color3(1, 0.65, 0.22));
+      lampMaterial.emissiveColor = new Color3(0.75, 0.38, 0.08);
+      lamp.material = lampMaterial;
+      meshes.push(lamp);
     }
 
     for (let i = 0; i < 4; i++) {
