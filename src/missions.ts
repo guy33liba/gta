@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   Vector3,
 } from "@babylonjs/core";
 
@@ -20,15 +20,15 @@ export class MissionSystem {
   private pickupPoint = new Vector3(0, 0, 0);
   private deliveryPoint = new Vector3(0, 0, 0);
   private escapePoint = new Vector3(0, 0, 0);
-  private readonly markerMaterial: StandardMaterial;
-  private readonly ringMaterial: StandardMaterial;
+  private readonly markerMaterial: PBRMaterial;
+  private readonly ringMaterial: PBRMaterial;
 
   constructor(
     private readonly scene: Scene,
     private readonly player: Mesh,
     private readonly car: Mesh,
     private readonly isDriving: () => boolean,
-    makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+    makeMaterial: (scene: Scene, name: string, color: Color3) => PBRMaterial,
     private readonly wanted: { addCrime: (amount?: number) => void; readonly level: number },
     private readonly onUpdate: (title: string, objective: string, distance: number | null, reward: number) => void,
     private readonly onComplete: (reward: number) => void,
