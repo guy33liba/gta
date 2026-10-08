@@ -26,7 +26,14 @@ import { AtmosphereSystem } from "./atmosphere";
 import { AudioSystem } from "./audio";
 import "./styles.css";
 
-type InputState = Record<string, boolean>;
+type InputState = {
+  forward: boolean;
+  backward: boolean;
+  left: boolean;
+  right: boolean;
+  sprint: boolean;
+};
+
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
 if (!canvas) throw new Error("Game canvas not found");
@@ -40,7 +47,7 @@ const wantedValue = document.querySelector<HTMLElement>("#wanted-value");
 const healthValue = document.querySelector<HTMLElement>("#health-value");
 const damageFlash = document.querySelector<HTMLElement>("#damage-flash");
 
-const input: InputState = {};
+const input: InputState = { forward: false, backward: false, left: false, right: false, sprint: false };
 let player: Mesh;
 let car: Mesh;
 let driving = false;
@@ -272,43 +279,84 @@ function toggleVehicle() {
   }
 }
 
-function bindTouchButton(id: string, key: string) {
+function bindTouchButton(id: string, action: keyof InputState) {
   const button = document.querySelector<HTMLButtonElement>("#" + id);
   if (!button) return;
 
-  const press = (event: Event) => {
+  const press = (event: PointerEvent) => {
     event.preventDefault();
-    input[key] = true;
+    button.setPointerCapture?.(event.pointerId);
+    input[action] = true;
   };
-  const release = (event: Event) => {
+  const release = (event: PointerEvent) => {
     event.preventDefault();
-    input[key] = false;
+    input[action] = false;
   };
 
   button.addEventListener("pointerdown", press);
   button.addEventListener("pointerup", release);
   button.addEventListener("pointercancel", release);
-  button.addEventListener("pointerleave", release);
+  button.addEventListener("lostpointercapture", () => { input[action] = false; });
 }
 
 function setupInput() {
+  const movementKeys: Record<string, keyof InputState> = {
+    KeyW: "forward",
+    ArrowUp: "forward",
+    KeyS: "backward",
+    ArrowDown: "backward",
+    KeyA: "left",
+    ArrowLeft: "left",
+    KeyD: "right",
+    ArrowRight: "right",
+    ShiftLeft: "sprint",
+    ShiftRight: "sprint",
+  };
+
   window.addEventListener("keydown", (event) => {
+    const action = movementKeys[event.code];
+    if (action) {
+      input[action] = true;
+      event.preventDefault();
+      return;
+    }
+
     const key = event.key.toLowerCase();
-    input[key] = true;
-    if (key === "e") toggleVehicle();
-    if (key === "r") reload();
-    if (key === "m" && !missions.active) missions.startMission();
+    if (key === "e") {
+      event.preventDefault();
+      toggleVehicle();
+    }
+    if (key === "r") {
+      event.preventDefault();
+      reload();
+    }
+    if (key === "m" && !missions.active) {
+      event.preventDefault();
+      missions.startMission();
+    }
   });
 
   window.addEventListener("keyup", (event) => {
-    input[event.key.toLowerCase()] = false;
+    const action = movementKeys[event.code];
+    if (action) {
+      input[action] = false;
+      event.preventDefault();
+    }
   });
 
-  bindTouchButton("touch-up", "w");
-  bindTouchButton("touch-left", "a");
-  bindTouchButton("touch-down", "s");
-  bindTouchButton("touch-right", "d");
-  bindTouchButton("touch-sprint", "shift");
+  window.addEventListener("blur", () => {
+    input.forward = false;
+    input.backward = false;
+    input.left = false;
+    input.right = false;
+    input.sprint = false;
+  });
+
+  bindTouchButton("touch-up", "forward");
+  bindTouchButton("touch-left", "left");
+  bindTouchButton("touch-down", "backward");
+  bindTouchButton("touch-right", "right");
+  bindTouchButton("touch-sprint", "sprint");
 
   const enterButton = document.querySelector<HTMLButtonElement>("#touch-enter");
   enterButton?.addEventListener("pointerdown", (event) => {
@@ -440,8 +488,8 @@ async function boot() {
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const active = driving ? car : player;
-    const forward = input.w ? 1 : input.s ? -1 : 0;
-    const strafe = input.d ? 1 : input.a ? -1 : 0;
+    const forward = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
+    const strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
 
     if (driving) {
       vehicleController.update({
@@ -449,13 +497,23 @@ async function boot() {
         reverse: forward < 0,
         left: strafe < 0,
         right: strafe > 0,
-        brake: Boolean(input[" "]),
+        brake: false,
       }, dt);
-    } else if (forward || strafe) {
-      const speed = input.shift ? 7 : 4.5;
-      const direction = new Vector3(strafe, 0, forward).normalize();
-      active.position.addInPlace(direction.scale(speed * dt));
-      active.rotation.y = Math.atan2(direction.x, direction.z);
+    } else {
+      const inputLength = Math.min(1, Math.hypot(strafe, forward));
+      if (inputLength > 0) {
+        const cameraForward = camera.getForwardRay(1).direction;
+        cameraForward.y = 0;
+        cameraForward.normalize();
+
+        const cameraRight = new Vector3(cameraForward.z, 0, -cameraForward.x);
+        const moveDirection = cameraForward.scale(forward).addInPlace(cameraRight.scale(strafe));
+        moveDirection.normalize();
+
+        const speed = input.sprint ? 7.5 : 4.6;
+        active.position.addInPlace(moveDirection.scale(speed * inputLength * dt));
+        active.rotation.y = Math.atan2(moveDirection.x, moveDirection.z);
+      }
     }
 
     active.position.y = driving ? 0.55 : 1.05;
