@@ -262,12 +262,17 @@ function createCar(scene: Scene) {
 }
 
 function createCamera(scene: Scene, target: Mesh) {
-  const camera = new ArcRotateCamera("third-person-camera", Math.PI, 1.08, 11.5, target.position, scene);
-  camera.lowerRadiusLimit = 5;
-  camera.upperRadiusLimit = 20;
-  camera.wheelDeltaPercentage = 0.02;
-  camera.attachControl(canvas, true);
+  const camera = new ArcRotateCamera("third-person-camera", Math.PI, 1.12, 10.5, target.position.clone(), scene);
+  camera.lowerRadiusLimit = 5.5;
+  camera.upperRadiusLimit = 18;
+  camera.lowerBetaLimit = 0.72;
+  camera.upperBetaLimit = 1.38;
+  camera.wheelDeltaPercentage = 0.015;
   camera.panningSensibility = 0;
+  camera.inertia = 0.72;
+  camera.angularSensibilityX = 420;
+  camera.angularSensibilityY = 420;
+  camera.attachControl(canvas, true);
   return camera;
 }
 
@@ -488,31 +493,36 @@ async function boot() {
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const active = driving ? car : player;
-    const forward = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
-    const strafe = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    const forwardInput = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
+    const strafeInput = (input.right ? 1 : 0) - (input.left ? 1 : 0);
 
     if (driving) {
       vehicleController.update({
-        throttle: forward > 0,
-        reverse: forward < 0,
-        left: strafe < 0,
-        right: strafe > 0,
+        throttle: forwardInput > 0,
+        reverse: forwardInput < 0,
+        left: strafeInput < 0,
+        right: strafeInput > 0,
         brake: false,
       }, dt);
-    } else {
-      const inputLength = Math.min(1, Math.hypot(strafe, forward));
-      if (inputLength > 0) {
-        const cameraForward = camera.getForwardRay(1).direction;
-        cameraForward.y = 0;
-        cameraForward.normalize();
+    } else if (forwardInput !== 0 || strafeInput !== 0) {
+      const cameraForward = camera.getForwardRay(1).direction.clone();
+      cameraForward.y = 0;
+      if (cameraForward.lengthSquared() < 0.001) cameraForward.set(0, 0, 1);
+      cameraForward.normalize();
 
-        const cameraRight = new Vector3(cameraForward.z, 0, -cameraForward.x);
-        const moveDirection = cameraForward.scale(forward).addInPlace(cameraRight.scale(strafe));
+      const cameraRight = new Vector3(cameraForward.z, 0, -cameraForward.x);
+      const moveDirection = cameraForward.scale(forwardInput)
+        .addInPlace(cameraRight.scale(strafeInput));
+      if (moveDirection.lengthSquared() > 0.001) {
         moveDirection.normalize();
+        const speed = input.sprint ? 7.2 : 4.6;
+        active.position.addInPlace(moveDirection.scale(speed * dt));
 
-        const speed = input.sprint ? 7.5 : 4.6;
-        active.position.addInPlace(moveDirection.scale(speed * inputLength * dt));
-        active.rotation.y = Math.atan2(moveDirection.x, moveDirection.z);
+        const targetYaw = Math.atan2(moveDirection.x, moveDirection.z);
+        let yawDelta = targetYaw - active.rotation.y;
+        while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+        while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+        active.rotation.y += yawDelta * Math.min(1, dt * 12);
       }
     }
 
@@ -533,11 +543,17 @@ async function boot() {
 
     const target = driving ? car : player;
     const speedRatio = driving ? Math.min(1, Math.abs(vehicleController.getSpeed()) / 26) : 0;
-    camera.alpha = Math.PI + target.rotation.y;
-    camera.beta = (driving ? 1.12 - speedRatio * 0.035 : 1.08) - combat.recoilKick;
-    camera.radius = driving ? 9.5 + speedRatio * 1.2 : 11.5;
-    camera.target.y = target.position.y + (driving ? speedRatio * 0.2 : 0.55);
-    camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
+    if (driving && Math.abs(vehicleController.getSpeed()) > 1) {
+      const desiredAlpha = Math.atan2(Math.sin(target.rotation.y), Math.cos(target.rotation.y)) + Math.PI;
+      let alphaDelta = desiredAlpha - camera.alpha;
+      while (alphaDelta > Math.PI) alphaDelta -= Math.PI * 2;
+      while (alphaDelta < -Math.PI) alphaDelta += Math.PI * 2;
+      camera.alpha += alphaDelta * Math.min(1, dt * 2.2);
+    }
+    camera.beta = (driving ? 1.14 - speedRatio * 0.06 : 1.12) - combat.recoilKick;
+    camera.radius = driving ? 9.5 + speedRatio * 1.8 : 10.5;
+    const desiredTarget = target.position.add(new Vector3(0, driving ? 0.65 : 0.9, 0));
+    camera.target = Vector3.Lerp(camera.target, desiredTarget, Math.min(1, dt * 8));
 
     scene.render();
   });
