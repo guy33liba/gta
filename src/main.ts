@@ -152,6 +152,16 @@ function createCar(scene: Scene) {
   body.position.set(8, 0.55, 8);
   body.material = material(scene, "CarPaint", new Color3(0.65, 0.07, 0.05));
 
+  const wheelMat = material(scene, "Tire", new Color3(0.015, 0.015, 0.018));
+  const wheelPositions = [[-1.05, 0.35, 1.25], [1.05, 0.35, 1.25], [-1.05, 0.35, -1.25], [1.05, 0.35, -1.25]];
+  for (let i = 0; i < wheelPositions.length; i++) {
+    const wheel = MeshBuilder.CreateCylinder("car-wheel-" + i, { diameter: 0.62, height: 0.22, tessellation: 16 }, scene);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(8 + wheelPositions[i][0], 0.35, 8 + wheelPositions[i][2]);
+    wheel.material = wheelMat;
+    wheel.parent = body;
+  }
+
   const roof = MeshBuilder.CreateBox("car-roof", { width: 1.75, height: 0.5, depth: 1.9 }, scene);
   roof.position.set(8, 0.98, 7.8);
   roof.material = material(scene, "CarGlass", new Color3(0.03, 0.08, 0.11));
@@ -348,9 +358,11 @@ async function boot() {
     }
 
     const target = driving ? car : player;
+    const speedRatio = driving ? Math.min(1, Math.abs(vehicleController.getSpeed()) / 26) : 0;
     camera.alpha = Math.PI + target.rotation.y;
-    camera.beta = driving ? 1.12 : 1.08;
-    camera.radius = driving ? 7.5 : 9;
+    camera.beta = driving ? 1.12 - speedRatio * 0.035 : 1.08;
+    camera.radius = driving ? 7.5 + speedRatio * 0.9 : 9;
+    if (driving) camera.target.y = target.position.y + speedRatio * 0.12;
     camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
 
     scene.render();
