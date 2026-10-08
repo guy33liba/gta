@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   Vector3,
   Ray,
 } from "@babylonjs/core";
@@ -20,8 +20,8 @@ type PoliceUnit = {
 
 export class WantedSystem {
   private readonly units: PoliceUnit[] = [];
-  private readonly policeMaterial: StandardMaterial;
-  private readonly lightMaterial: StandardMaterial;
+  private readonly policeMaterial: PBRMaterial;
+  private readonly lightMaterial: PBRMaterial;
   private wanted = 0;
   private crimeTimer = 0;
   private searchTimer = 0;
@@ -33,7 +33,7 @@ export class WantedSystem {
     private readonly player: Mesh,
     private readonly car: Mesh,
     private readonly isDriving: () => boolean,
-    makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+    makeMaterial: (scene: Scene, name: string, color: Color3) => PBRMaterial,
     private readonly onWantedChange: (level: number) => void,
     private readonly onPlayerDamage: (amount: number) => void,
   ) {
