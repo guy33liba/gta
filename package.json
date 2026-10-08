@@ -1,7 +1,7 @@
 {
   "name": "gta-browser",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "^9.26.0",
+    "@babylonjs/havok": "^9.26.0",
     "@babylonjs/loaders": "^9.26.0"
   },
   "devDependencies": {
