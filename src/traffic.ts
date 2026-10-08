@@ -17,6 +17,11 @@ type TrafficCar = {
   targetSpeed: number;
   seed: number;
   lastIntersection: string;
+  laneOffset: number;
+  laneTarget: number;
+  laneChangeTimer: number;
+  stuckTimer: number;
+  panicTimer: number;
 };
 
 const ROAD_SPACING = 56;
@@ -97,16 +102,43 @@ export class TrafficSystem {
       targetSpeed: 7 + (seed % 7),
       seed,
       lastIntersection: "",
+      laneOffset: -direction * LANE_OFFSET,
+      laneTarget: -direction * LANE_OFFSET,
+      laneChangeTimer: 2 + (seed % 5),
+      stuckTimer: 0,
+      panicTimer: 0,
     });
   }
 
   private updateCar(car: TrafficCar, dt: number) {
     const position = car.mesh.position;
+    car.laneChangeTimer = Math.max(0, car.laneChangeTimer - dt);
     const signalStop = this.shouldStopForSignal(car);
-    const obstacleStop = this.shouldStopForTraffic(car);
-    car.targetSpeed = signalStop || obstacleStop ? 0 : 7 + (car.seed % 7);
+    const traffic = this.getTrafficObstacle(car);
+    const obstacleStop = traffic.blocked;
+
+    if (obstacleStop) car.stuckTimer += dt;
+    else car.stuckTimer = Math.max(0, car.stuckTimer - dt * 1.5);
+
+    if (car.stuckTimer > 1.4 && car.laneChangeTimer === 0) {
+      const alternate = -car.laneTarget;
+      if (this.canUseLane(car, alternate)) {
+        car.laneTarget = alternate;
+        car.laneChangeTimer = 3.5;
+      }
+    }
+
+    car.targetSpeed = signalStop ? 0 : obstacleStop && car.laneTarget === car.laneOffset ? Math.min(2.2, 7 + (car.seed % 7)) : 7 + (car.seed % 7);
     const acceleration = car.targetSpeed > car.speed ? 5 : 10;
     car.speed += Math.sign(car.targetSpeed - car.speed) * Math.min(Math.abs(car.targetSpeed - car.speed), acceleration * dt);
+
+    const laneStep = Math.min(Math.abs(car.laneTarget - car.laneOffset), dt * 2.8);
+    car.laneOffset += Math.sign(car.laneTarget - car.laneOffset) * laneStep;
+    const laneCenter = car.axis === "x"
+      ? this.nearestRoadZ(position.z) + car.laneOffset
+      : this.nearestRoadX(position.x) + car.laneOffset;
+    if (car.axis === "x") position.z = laneCenter;
+    else position.x = laneCenter;
 
     const step = car.speed * dt * car.direction;
     if (car.axis === "x") position.x += step;
@@ -117,25 +149,50 @@ export class TrafficSystem {
     this.handleIntersection(car);
   }
 
-  private shouldStopForTraffic(car: TrafficCar) {
+  private getTrafficObstacle(car: TrafficCar) {
     const forward = this.forwardVector(car);
-    const lookAhead = 9;
+    const lookAhead = 11;
+    let blocked = false;
+    let nearest = lookAhead;
     for (const other of this.cars) {
       if (other === car) continue;
+      if (other.axis !== car.axis || other.direction !== car.direction) continue;
       const delta = other.mesh.position.subtract(car.mesh.position);
       const forwardDistance = Vector3.Dot(delta, forward);
-      if (forwardDistance <= 0 || forwardDistance > lookAhead) continue;
       const lateralDistance = Math.abs(Vector3.Dot(delta, new Vector3(-forward.z, 0, forward.x)));
-      if (lateralDistance < 2.2) return true;
+      if (forwardDistance > 0 && forwardDistance < nearest && lateralDistance < 2.1) {
+        blocked = true;
+        nearest = forwardDistance;
+      }
     }
-
     if (this.isPlayerDriving()) {
       const delta = this.playerCar.position.subtract(car.mesh.position);
       const forwardDistance = Vector3.Dot(delta, forward);
       const lateralDistance = Math.abs(Vector3.Dot(delta, new Vector3(-forward.z, 0, forward.x)));
-      if (forwardDistance > 0 && forwardDistance < lookAhead && lateralDistance < 2.4) return true;
+      if (forwardDistance > 0 && forwardDistance < nearest && lateralDistance < 2.3) blocked = true;
     }
-    return false;
+    return { blocked, nearest };
+  }
+
+  private canUseLane(car: TrafficCar, targetOffset: number) {
+    const road = car.axis === "x" ? this.nearestRoadZ(car.mesh.position.z) : this.nearestRoadX(car.mesh.position.x);
+    const target = car.axis === "x" ? new Vector3(car.mesh.position.x, 0.55, road + targetOffset) : new Vector3(road + targetOffset, 0.55, car.mesh.position.z);
+    return !this.cars.some((other) => {
+      if (other === car || other.axis !== car.axis || other.direction !== car.direction) return false;
+      return Vector3.DistanceSquared(other.mesh.position, target) < 36;
+    });
+  }
+
+  private nearestRoadX(value: number) {
+    return Math.round(value / ROAD_SPACING) * ROAD_SPACING;
+  }
+
+  private nearestRoadZ(value: number) {
+    return Math.round(value / ROAD_SPACING) * ROAD_SPACING;
+  }
+
+  private shouldStopForTraffic(car: TrafficCar) {
+    return this.getTrafficObstacle(car).blocked;
   }
 
   private shouldStopForSignal(car: TrafficCar) {
