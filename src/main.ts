@@ -14,6 +14,7 @@ import {
   StandardMaterial,
   Vector3,
   WebGPUEngine,
+  Camera,
 } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import "@babylonjs/loaders";
@@ -21,6 +22,7 @@ import { createWorldStream } from "./world";
 import { VehicleController } from "./vehicle";
 import { TrafficSystem } from "./traffic";
 import { PedestrianSystem } from "./pedestrians";
+import { CombatSystem } from "./combat";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -31,6 +33,8 @@ if (!canvas) throw new Error("Game canvas not found");
 const progress = document.querySelector<HTMLElement>("#loading-progress");
 const loadingScreen = document.querySelector<HTMLElement>("#loading-screen");
 const missionState = document.querySelector<HTMLElement>("#mission-state");
+const ammoValue = document.querySelector<HTMLElement>("#ammo-value");
+const hitMarker = document.querySelector<HTMLElement>("#hit-marker");
 
 const input: InputState = {};
 let player: Mesh;
@@ -193,6 +197,7 @@ function setupInput() {
     const key = event.key.toLowerCase();
     input[key] = true;
     if (key === "e") toggleVehicle();
+    if (key === "r") reload();
   });
 
   window.addEventListener("keyup", (event) => {
@@ -239,6 +244,31 @@ async function boot() {
   const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const pedestrians = new PedestrianSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
+  const combat = new CombatSystem(
+    scene,
+    camera,
+    pedestrians,
+    () => !driving,
+    (state) => {
+      if (ammoValue) ammoValue.textContent = state.reloading ? "RELOADING" : state.ammo + " / " + state.reserveAmmo;
+    },
+    () => {
+      if (hitMarker) {
+        hitMarker.classList.remove("is-hit");
+        void hitMarker.offsetWidth;
+        hitMarker.classList.add("is-hit");
+      }
+    },
+  );
+  const fire = () => combat.shoot();
+  const reload = () => combat.reload();
+  document.querySelector<HTMLButtonElement>("#touch-fire")?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    fire();
+  });
+  window.addEventListener("mousedown", (event) => {
+    if (event.button === 0) fire();
+  });
 
   setProgress(86);
   setupInput();
@@ -271,6 +301,7 @@ async function boot() {
     worldStream.update();
     traffic.update(dt);
     pedestrians.update(dt);
+    combat.update(dt);
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
