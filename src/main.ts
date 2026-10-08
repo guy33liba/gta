@@ -40,12 +40,15 @@ const missionState = document.querySelector<HTMLElement>("#mission-state");
 const ammoValue = document.querySelector<HTMLElement>("#ammo-value");
 const hitMarker = document.querySelector<HTMLElement>("#hit-marker");
 const wantedValue = document.querySelector<HTMLElement>("#wanted-value");
+const healthValue = document.querySelector<HTMLElement>("#health-value");
+const damageFlash = document.querySelector<HTMLElement>("#damage-flash");
 
 const input: InputState = {};
 let player: Mesh;
 let car: Mesh;
 let driving = false;
 let vehicleController: VehicleController;
+let playerHealth = 100;
 
 const setProgress = (value: number) => {
   if (progress) progress.style.width = value + "%";
@@ -267,6 +270,22 @@ async function boot() {
   window.addEventListener("keydown", unlockAudio, { once: true });
   const wanted = new WantedSystem(scene, player, car, () => driving, material, (level) => {
     if (wantedValue) wantedValue.textContent = level > 0 ? "★".repeat(level) : "CLEAR";
+  }, (amount) => {
+    playerHealth = Math.max(0, playerHealth - amount);
+    if (healthValue) healthValue.textContent = String(playerHealth);
+    if (damageFlash) {
+      damageFlash.classList.remove("is-damaged");
+      void damageFlash.offsetWidth;
+      damageFlash.classList.add("is-damaged");
+    }
+    if (playerHealth === 0) {
+      playerHealth = 100;
+      if (healthValue) healthValue.textContent = "100";
+      player.position.set(0, 1.05, 0);
+      car.position.set(8, 0.55, 8);
+      driving = false;
+      player.setEnabled(true);
+    }
   });
   const combat = new CombatSystem(
     scene,
