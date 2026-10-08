@@ -19,6 +19,7 @@ import HavokPhysics from "@babylonjs/havok";
 import "@babylonjs/loaders";
 import { createWorldStream } from "./world";
 import { VehicleController } from "./vehicle";
+import { TrafficSystem } from "./traffic";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -234,6 +235,7 @@ async function boot() {
   const worldStream = createWorldStream(scene, player, material);
   worldStream.update();
   vehicleController = new VehicleController(car);
+  const traffic = new TrafficSystem(scene, player, car, () => driving, material);
   const camera = createCamera(scene, player);
 
   setProgress(86);
@@ -265,6 +267,7 @@ async function boot() {
     }
 
     worldStream.update();
+    traffic.update(dt);
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
