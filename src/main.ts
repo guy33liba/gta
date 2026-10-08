@@ -18,6 +18,7 @@ import {
 import HavokPhysics from "@babylonjs/havok";
 import "@babylonjs/loaders";
 import { createWorldStream } from "./world";
+import { VehicleController } from "./vehicle";
 import "./styles.css";
 
 type InputState = Record<string, boolean>;
@@ -33,6 +34,7 @@ const input: InputState = {};
 let player: Mesh;
 let car: Mesh;
 let driving = false;
+let vehicleController: VehicleController;
 
 const setProgress = (value: number) => {
   if (progress) progress.style.width = value + "%";
@@ -233,6 +235,7 @@ async function boot() {
   car = createCar(scene);
   const worldStream = createWorldStream(scene, player, material);
   worldStream.update();
+  vehicleController = new VehicleController(car);
   const camera = createCamera(scene, player);
 
   setProgress(86);
@@ -241,11 +244,19 @@ async function boot() {
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const active = driving ? car : player;
-    const speed = driving ? 11 : (input.shift ? 7 : 4.5);
     const forward = input.w ? 1 : input.s ? -1 : 0;
     const strafe = input.d ? 1 : input.a ? -1 : 0;
 
-    if (forward || strafe) {
+    if (driving) {
+      vehicleController.update({
+        throttle: forward > 0,
+        reverse: forward < 0,
+        left: strafe < 0,
+        right: strafe > 0,
+        brake: Boolean(input[" "]),
+      }, dt);
+    } else if (forward || strafe) {
+      const speed = input.shift ? 7 : 4.5;
       const direction = new Vector3(strafe, 0, forward).normalize();
       active.position.addInPlace(direction.scale(speed * dt));
       active.rotation.y = Math.atan2(direction.x, direction.z);
@@ -259,7 +270,8 @@ async function boot() {
 
     const target = driving ? car : player;
     camera.alpha = Math.PI + target.rotation.y;
-    camera.beta = 1.08;
+    camera.beta = driving ? 1.12 : 1.08;
+    camera.radius = driving ? 7.5 : 9;
     camera.target = Vector3.Lerp(camera.target, target.position, Math.min(1, dt * 7));
 
     scene.render();
