@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
+  PBRMaterial,
   Vector3,
 } from "@babylonjs/core";
 
@@ -34,8 +34,8 @@ const MAX_PEDESTRIANS = 28;
 
 export class PedestrianSystem {
   private readonly pedestrians: Pedestrian[] = [];
-  private readonly bodyMaterial: StandardMaterial;
-  private readonly shirtMaterials: StandardMaterial[];
+  private readonly bodyMaterial: PBRMaterial;
+  private readonly shirtMaterials: PBRMaterial[];
   private elapsed = 0;
   private gunshotThreats: Array<{ position: Vector3; timer: number }> = [];
   private policeThreats: Vector3[] = [];
@@ -45,7 +45,7 @@ export class PedestrianSystem {
     private readonly focus: Mesh,
     private readonly playerCar: Mesh,
     private readonly isPlayerDriving: () => boolean,
-    makeMaterial: (scene: Scene, name: string, color: Color3) => StandardMaterial,
+    makeMaterial: (scene: Scene, name: string, color: Color3) => PBRMaterial,
   ) {
     this.bodyMaterial = makeMaterial(scene, "PedestrianSkin", new Color3(0.34, 0.2, 0.12));
     this.shirtMaterials = [
